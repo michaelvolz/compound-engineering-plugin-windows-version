@@ -19,8 +19,8 @@ The current OpenCode converter writes agents as flat `.md` files directly in `ag
 ## Requirements Trace
 
 - R1. Agents with subdirectories must copy the full directory structure
-- R2. FQ agent references in skill AND agent content must be rewritten to subfolder paths (transformSkillContentForOpenCode applies to both)
-- R3. Migration: move any existing flat CE files to namespaced subfolders
+- R2. FQ agent references in skill AND agent content must be rewritten to subfolder paths (already handled by converter)
+- R3. Migration: move any existing flat CE files to namespaced subfolders (DEFERRED to v2)
 - R4. Test to temp folder only (no global config during development)
 
 ## Scope Boundaries
@@ -73,11 +73,11 @@ The current OpenCode converter writes agents as flat `.md` files directly in `ag
 
 **Test scenarios:**
 
-- Happy path: Agent `ce-session-historian` in category `research` becomes `compound-engineering/research/ce-session-historian/` — complete folder copy including all files
+- Happy path: Source directory `agents/research/session-history-scripts/` copied AS IS (exact name preserved) to `agents/compound-engineering/research/session-history-scripts/` with all 4 files
 
 **Verification:**
 
-- Agent files written to `agents/compound-engineering/research/session-history/*.md` (not flat)
+- Agent files written to `agents/compound-engineering/research/session-history-scripts/` with exact source directory name preserved
 
 ---
 
@@ -96,19 +96,19 @@ The current OpenCode converter writes agents as flat `.md` files directly in `ag
 **Approach:**
 
 - Add `sourceDir` to agent entries in bundle (from `agent.sourcePath`)
-- Convert main agent `.md` file (apply `transformSkillContentForOpenCode`)
-- Copy ALL other files in the agent directory — scripts, documents, images, configs, any filetype. Do NOT transform non-.md files.
+- Copy entire agent directory from source to output (preserving exact folder name)
+- Transform only `.md` files with `transformSkillContentForOpenCode`
+- Copy all other file types as-is (scripts, docs, images, configs — any filetype)
 - Preserve exact folder structure under `compound-engineering/` namespace
-- **Final verify pass:** Scan source directory for any files missed during conversion, copy them to the target location
 
 **Patterns to follow:**
 
-- `copySkillDir(skill.sourceDir, path.join(skillsRoot, sanitizePathName(skill.name)), transformSkillContentForOpenCode, true)`
+- Reuse `copySkillDir` utility from `src/utils/files.ts` for agent directories (same signature as skills)
 
 **Test scenarios:**
 
-- Happy path: Source directory `plugins/compound-engineering/agents/research/session-history-scripts/` copied to output with ALL files (scripts, docs, images, configs — any filetype)
-- Happy path: Agent markdown file (`ce-session-historian.agent.md`) transformed and present alongside supporting files
+- Happy path: Entire `session-history-scripts/` directory copied to output with ALL files preserved exactly
+- Happy path: Agent `.md` file transformed, other files copied as-is
 
 **Verification:**
 
@@ -117,9 +117,11 @@ The current OpenCode converter writes agents as flat `.md` files directly in `ag
 
 ---
 
-- [ ] **Unit 3: Add migration for flat CE agents**
+- [ ] **Unit 3: Add migration for flat CE agents (DEFERRED to v2)**
 
 **Goal:** Move existing flat CE agent files to namespaced subfolders
+
+**Rationale:** Most users will re-run the converter fresh to get correct output. Migration is needed only for users who ran the old converter and modified their local files. Defer to v2.
 
 **Requirements:** R3
 
@@ -167,9 +169,7 @@ The current OpenCode converter writes agents as flat `.md` files directly in `ag
 **Test scenarios:**
 
 - Happy path: Full directory structure (`session-history-scripts/`) copied with ALL file types
-- Happy path: Final verify pass detects and copies any missed files
-- Edge case: Agent with no subdirectories works (writes only .md file)
-- Edge case: Verify pass handles empty directories gracefully
+- Edge case: Agent with no subdirectories (e.g., `ce-best-practices-researcher/`) works — writes only .md file
 
 **Verification:**
 
@@ -187,8 +187,8 @@ The current OpenCode converter writes agents as flat `.md` files directly in `ag
 After all units complete:
 
 1. Run `bun src/index.ts convert plugins/compound-engineering --to opencode --output ./temp-opencode-test`
-2. Verify `temp-opencode-test/.opencode/agents/compound-engineering/research/session-history-scripts/` contains all scripts
-3. Verify `temp-opencode-test/.opencode/skills/compound-engineering/` exists with skills
+2. Verify `temp-opencode-test/.opencode/agents/compound-engineering/research/session-history-scripts/` contains all 4 files (exact source copy)
+3. Verify `temp-opencode-test/.opencode/skills/compound-engineering/` exists with skill directories
 4. Run `bun test`
 
 ## Sources & References
