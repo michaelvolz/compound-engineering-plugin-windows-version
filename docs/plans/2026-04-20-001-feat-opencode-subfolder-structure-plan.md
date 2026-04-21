@@ -195,3 +195,7 @@ After all units complete:
 
 - Origin document: [_opencode-conversion_/CE-in-OpenCode-with-proper-subfolder-structure.md](../_opencode-conversion_/CE-in-OpenCode-with-proper-subfolder-structure.md)
 - Related code: `src/converters/claude-to-opencode.ts`, `src/targets/opencode.ts`
+
+## Post-Implementation Cleanup
+
+**Remove all debug logging statements** added during development before final commit. Search for patterns like `[DEBUG`, `console.log`, or any temporary logging and remove them.
