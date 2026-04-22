@@ -28,6 +28,13 @@ This rule applies identically to every skill, including the lfg skill whose fron
 
 The converter copies the entire original skill directory (including `references/`, `assets/`, `scripts/`, and any additional files or subfolders) into the target location. Organizational subfolders up to three levels deep under `compound-engineering/` are permitted for grouping only. All internal references inside `SKILL.md` remain relative to the skill root directory.
 
+**Skill-reference rewriting (mandatory)**  
+In the original Claude Code `.md` files, other skills are referenced in natural language (e.g. “Invoke the ce-plan skill”, “call ce-work”, “use ce-compound”, or occasionally the FQ form “compound-engineering:ce-plan”).  
+The converter **must** rewrite every such reference in the final `.md` content so that the OpenCode model receives explicit, unambiguous instructions using the exact OpenCode syntax:  
+`skill({ name: "exact-value-from-frontmatter-name" })`  
+Use the `transformSkillContentForOpenCode` (or equivalent) function for this purpose on **all** `.md` files (skills and agents). This ensures the final *.md files contain the correct invocation method even after the original Claude-style instructions are removed or adapted.  
+This rewriting ensures that every final `.md` file is fully self-describing for the OpenCode model: the model immediately recognizes `skill({ name: "exact-value-from-frontmatter-name" })` as the canonical native tool invocation syntax and never falls back to Claude-style natural-language references.
+
 **Frontmatter handling**  
 Retain the `name:` and `description:` fields exactly as they appear. Remove any hardcoded `model:`, `temperature:`, or provider fields so that OpenCode provider defaults are used.
 
@@ -54,6 +61,9 @@ Use the full converted path exactly as shown above. Never use a bare agent name,
 
 The converter writes the main agent `.md` file (after transformation) and copies every other file and subdirectory from the source (scripts, references, assets, images, configs, etc.) exactly as they exist. Organizational depth is limited to three subfolder levels under `compound-engineering/`.
 
+**Skill-reference rewriting (mandatory)**  
+Apply the same rewriting rule as for skills (see section 1) to any internal skill references inside agent `.md` files.
+
 **Frontmatter handling**  
 Retain `description:` and any mode fields. Remove any hardcoded `model:`, `temperature:`, or provider fields so that OpenCode provider defaults are used.
 
@@ -73,6 +83,7 @@ Extend the `OpenCodeAgentFile` interface:
 **`src/converters/claude-to-opencode.ts`**  
 - For every agent, set `sourceDir = agent.sourcePath`.  
 - Apply the transformation function to the main agent `.md` content: replace every `compound-engineering:category:agentname` with `@compound-engineering/category/agentname`.  
+- For **all** `.md` files (skills and agents): also rewrite every skill reference in the prompt content to the exact OpenCode form `skill({ name: "exact-value-from-frontmatter-name" })` using the frontmatter `name:` value.  
 - For skills, leave the frontmatter `name:` field completely unchanged.  
 - Clean only model and provider hardcodes from frontmatter. Never alter shortcut names or insert any conversion markers.
 
@@ -88,6 +99,7 @@ Extend the `OpenCodeAgentFile` interface:
 **4. Post-Conversion Guarantees**  
 - Skill invocation always uses the exact frontmatter `name:` value, regardless of the final directory name or filename.  
 - Agent invocation always uses the full `@compound-engineering/...` path derived from the original colon FQ name.  
+- All `.md` files now contain explicit, correct OpenCode invocation instructions for both skills and agents.  
 - All relative references inside copied subfolders resolve correctly.  
 - The resulting structure is self-contained and matches OpenCode expectations exactly.
 
