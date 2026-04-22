@@ -94,6 +94,9 @@ Extend the `OpenCodeAgentFile` interface:
 - Enforce Linux-style line endings (LF only, no CRLF) on all written files.  
 - Migration of existing flat files: Scan root `skills/` and `agents/` directories. Move only CE files (matched by plugin manifest name) into the `compound-engineering/` subfolder structure. Skip all non-CE files to avoid overwriting user content. Fail fast on any error with a clear message.
 
+**Skill Reference Verification (mandatory final step)**  
+After all rewriting and writing is complete, perform a verification pass on **every** generated `.md` file (skills and agents). Collect the complete list of canonical skill names from all frontmatter `name:` fields. Scan each file for any remaining Claude-style skill references (slash, dollar, FQ colon, bare names, or natural-language patterns). Any unmatched reference must trigger a clear, descriptive error (fail-fast) with the exact file path and offending line. This guarantees that every skill reference in every final `.md` file uses only the canonical OpenCode syntax.
+
 ---
 
 **4. Post-Conversion Guarantees**  
