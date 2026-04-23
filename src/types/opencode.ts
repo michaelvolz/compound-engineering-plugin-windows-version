@@ -31,6 +31,7 @@ export type OpenCodeMcpServer = {
 export type OpenCodeAgentFile = {
   name: string
   content: string
+  sourceDir?: string
 }
 
 export type OpenCodePluginFile = {
@@ -50,4 +51,5 @@ export type OpenCodeBundle = {
   commandFiles: OpenCodeCommandFile[]
   plugins: OpenCodePluginFile[]
   skillDirs: { sourceDir: string; name: string }[]
+  namespace?: string
 }

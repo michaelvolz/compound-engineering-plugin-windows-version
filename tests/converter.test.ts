@@ -65,7 +65,7 @@ describe("convertClaudeToOpenCode", () => {
     expect(parsed.data.mode).toBe("subagent")
   })
 
-  test("normalizes models and infers temperature", async () => {
+  test("strips model and temperature from agent output (frontmatter cleaning)", async () => {
     const plugin = await loadClaudePlugin(fixtureRoot)
     const bundle = convertClaudeToOpenCode(plugin, {
       agentMode: "primary",
@@ -76,16 +76,42 @@ describe("convertClaudeToOpenCode", () => {
     const securityAgent = bundle.agents.find((agent) => agent.name === "security-sentinel")
     expect(securityAgent).toBeDefined()
     const parsed = parseFrontmatter(securityAgent!.content)
-    expect(parsed.data.model).toBe("anthropic/claude-sonnet-4-20250514")
-    expect(parsed.data.temperature).toBe(0.1)
-
-    const modelCommand = bundle.commandFiles.find((f) => f.name === "workflows:work")
-    expect(modelCommand).toBeDefined()
-    const commandParsed = parseFrontmatter(modelCommand!.content)
-    expect(commandParsed.data.model).toBe("openai/gpt-4o")
+    // Model and temperature are stripped by the transform per R7
+    expect(parsed.data.model).toBeUndefined()
+    expect(parsed.data.temperature).toBeUndefined()
   })
 
-  test("resolves bare Claude model aliases for primary agents", () => {
+  test("strips model from command output (frontmatter cleaning)", async () => {
+    const plugin: ClaudePlugin = {
+      root: "/tmp/plugin",
+      manifest: { name: "fixture", version: "1.0.0" },
+      agents: [],
+      commands: [
+        {
+          name: "test-cmd",
+          description: "Test command",
+          body: "Do the thing",
+          sourcePath: "/tmp/plugin/commands/test-cmd.md",
+          model: "gpt-4o",
+        },
+      ],
+      skills: [],
+    }
+
+    const bundle = convertClaudeToOpenCode(plugin, {
+      agentMode: "subagent",
+      inferTemperature: false,
+      permissions: "none",
+    })
+
+    const commandFile = bundle.commandFiles.find((f) => f.name === "test-cmd")
+    expect(commandFile).toBeDefined()
+    const parsed = parseFrontmatter(commandFile!.content)
+    expect(parsed.data.model).toBeUndefined()
+    expect(parsed.data.description).toBe("Test command")
+  })
+
+  test("resolves bare Claude model aliases for primary agents but strips from output", () => {
     const plugin: ClaudePlugin = {
       root: "/tmp/plugin",
       manifest: { name: "fixture", version: "1.0.0" },
@@ -111,7 +137,8 @@ describe("convertClaudeToOpenCode", () => {
     const agent = bundle.agents.find((a) => a.name === "cheap-agent")
     expect(agent).toBeDefined()
     const parsed = parseFrontmatter(agent!.content)
-    expect(parsed.data.model).toBe("anthropic/claude-haiku-4-5")
+    // Model is stripped by transform per R7
+    expect(parsed.data.model).toBeUndefined()
   })
 
   test("omits model for subagents to allow provider inheritance (#477)", () => {
@@ -410,12 +437,206 @@ Run \`/compound-engineering-setup\` to create a settings file.`,
     expect(parsed.data.description).toBe("Test description")
     expect(parsed.body).toContain("Do the thing")
   })
+
+  test("populates sourceDir on every agent file", async () => {
+    const plugin = await loadClaudePlugin(fixtureRoot)
+    const bundle = convertClaudeToOpenCode(plugin, {
+      agentMode: "subagent",
+      inferTemperature: false,
+      permissions: "none",
+    })
+
+    for (const agent of bundle.agents) {
+      expect(agent.sourceDir).toBeDefined()
+      expect(agent.sourceDir).toContain("agents/")
+    }
+  })
+
+  test("populates namespace from plugin manifest name", async () => {
+    const plugin = await loadClaudePlugin(fixtureRoot)
+    const bundle = convertClaudeToOpenCode(plugin, {
+      agentMode: "subagent",
+      inferTemperature: false,
+      permissions: "none",
+    })
+
+    expect(bundle.namespace).toBe(plugin.manifest.name)
+  })
+
+  test("rewrites 3-segment FQ agent refs to @compound-engineering format", () => {
+    const plugin: ClaudePlugin = {
+      root: "/tmp/plugin",
+      manifest: { name: "fixture", version: "1.0.0" },
+      agents: [
+        {
+          name: "security-sentinel",
+          description: "Security reviewer",
+          body: "Dispatch `compound-engineering:review:security-sentinel` for checks.",
+          sourcePath: "/tmp/plugin/agents/review/security-sentinel.agent.md",
+        },
+      ],
+      commands: [],
+      skills: [],
+    }
+
+    const bundle = convertClaudeToOpenCode(plugin, {
+      agentMode: "subagent",
+      inferTemperature: false,
+      permissions: "none",
+    })
+
+    const agent = bundle.agents.find((a) => a.name === "security-sentinel")
+    expect(agent).toBeDefined()
+    expect(agent!.content).toContain("`@compound-engineering/review/security-sentinel`")
+    expect(agent!.content).not.toContain("compound-engineering:review:security-sentinel")
+  })
+
+  test("rewrites 2-segment category-qualified agent refs to @compound-engineering format", () => {
+    const plugin: ClaudePlugin = {
+      root: "/tmp/plugin",
+      manifest: { name: "fixture", version: "1.0.0" },
+      agents: [
+        {
+          name: "ce-correctness-reviewer",
+          description: "Correctness reviewer",
+          body: "Dispatch `review:ce-correctness-reviewer` for logic checks.",
+          sourcePath: "/tmp/plugin/agents/review/ce-correctness-reviewer.agent.md",
+        },
+      ],
+      commands: [],
+      skills: [],
+    }
+
+    const bundle = convertClaudeToOpenCode(plugin, {
+      agentMode: "subagent",
+      inferTemperature: false,
+      permissions: "none",
+    })
+
+    const agent = bundle.agents.find((a) => a.name === "ce-correctness-reviewer")
+    expect(agent).toBeDefined()
+    expect(agent!.content).toContain("`@compound-engineering/review/ce-correctness-reviewer`")
+    expect(agent!.content).not.toContain("review:ce-correctness-reviewer")
+  })
+
+  test("rewrites skill FQ refs to skill({ name: ... }) syntax", () => {
+    const plugin: ClaudePlugin = {
+      root: "/tmp/plugin",
+      manifest: { name: "fixture", version: "1.0.0" },
+      agents: [
+        {
+          name: "test-agent",
+          description: "Test agent",
+          body: "Use `compound-engineering:ce-plan` for planning.",
+          sourcePath: "/tmp/plugin/agents/test-agent.md",
+        },
+      ],
+      commands: [],
+      skills: [
+        {
+          name: "ce-plan",
+          sourceDir: "/tmp/plugin/skills/ce-plan",
+          skillPath: "/tmp/plugin/skills/ce-plan/SKILL.md",
+        },
+      ],
+    }
+
+    const bundle = convertClaudeToOpenCode(plugin, {
+      agentMode: "subagent",
+      inferTemperature: false,
+      permissions: "none",
+    })
+
+    const agent = bundle.agents.find((a) => a.name === "test-agent")
+    expect(agent).toBeDefined()
+    expect(agent!.content).toContain('skill({ name: "ce-plan" })')
+    expect(agent!.content).not.toContain("compound-engineering:ce-plan")
+  })
+
+  test("rewrites natural language skill invocations to skill({ name: ... })", () => {
+    const plugin: ClaudePlugin = {
+      root: "/tmp/plugin",
+      manifest: { name: "fixture", version: "1.0.0" },
+      agents: [
+        {
+          name: "test-agent",
+          description: "Test agent",
+          body: "Invoke the ce-plan skill for planning. Call ce-work when ready.",
+          sourcePath: "/tmp/plugin/agents/test-agent.md",
+        },
+      ],
+      commands: [],
+      skills: [
+        {
+          name: "ce-plan",
+          sourceDir: "/tmp/plugin/skills/ce-plan",
+          skillPath: "/tmp/plugin/skills/ce-plan/SKILL.md",
+        },
+        {
+          name: "ce-work",
+          sourceDir: "/tmp/plugin/skills/ce-work",
+          skillPath: "/tmp/plugin/skills/ce-work/SKILL.md",
+        },
+      ],
+    }
+
+    const bundle = convertClaudeToOpenCode(plugin, {
+      agentMode: "subagent",
+      inferTemperature: false,
+      permissions: "none",
+    })
+
+    const agent = bundle.agents.find((a) => a.name === "test-agent")
+    expect(agent).toBeDefined()
+    expect(agent!.content).toContain('skill({ name: "ce-plan" })')
+    expect(agent!.content).toContain('skill({ name: "ce-work" })')
+  })
+
+  test("does not rewrite prose mentions of skills", () => {
+    const plugin: ClaudePlugin = {
+      root: "/tmp/plugin",
+      manifest: { name: "fixture", version: "1.0.0" },
+      agents: [
+        {
+          name: "test-agent",
+          description: "Test agent",
+          body: "The ce-plan skill is useful. ce-work handles execution.",
+          sourcePath: "/tmp/plugin/agents/test-agent.md",
+        },
+      ],
+      commands: [],
+      skills: [
+        {
+          name: "ce-plan",
+          sourceDir: "/tmp/plugin/skills/ce-plan",
+          skillPath: "/tmp/plugin/skills/ce-plan/SKILL.md",
+        },
+        {
+          name: "ce-work",
+          sourceDir: "/tmp/plugin/skills/ce-work",
+          skillPath: "/tmp/plugin/skills/ce-work/SKILL.md",
+        },
+      ],
+    }
+
+    const bundle = convertClaudeToOpenCode(plugin, {
+      agentMode: "subagent",
+      inferTemperature: false,
+      permissions: "none",
+    })
+
+    const agent = bundle.agents.find((a) => a.name === "test-agent")
+    expect(agent).toBeDefined()
+    // Prose mentions without dispatch verbs should be left unchanged
+    expect(agent!.content).toContain("The ce-plan skill is useful")
+    expect(agent!.content).toContain("ce-work handles execution")
+  })
 })
 
 describe("transformSkillContentForOpenCode", () => {
-  test("rewrites 3-segment FQ agent names to flat names", () => {
+  test("rewrites 3-segment FQ agent names to @compound-engineering format", () => {
     const input = "- `compound-engineering:document-review:coherence-reviewer`"
-    expect(transformSkillContentForOpenCode(input)).toBe("- `coherence-reviewer`")
+    expect(transformSkillContentForOpenCode(input)).toBe("- `@compound-engineering/document-review/coherence-reviewer`")
   })
 
   test("rewrites multiple FQ agent refs in one block", () => {
@@ -425,15 +646,15 @@ describe("transformSkillContentForOpenCode", () => {
       "- `compound-engineering:review:security-sentinel`",
     ].join("\n")
     const result = transformSkillContentForOpenCode(input)
-    expect(result).toContain("- `coherence-reviewer`")
-    expect(result).toContain("- `feasibility-reviewer`")
-    expect(result).toContain("- `security-sentinel`")
+    expect(result).toContain("- `@compound-engineering/document-review/coherence-reviewer`")
+    expect(result).toContain("- `@compound-engineering/document-review/feasibility-reviewer`")
+    expect(result).toContain("- `@compound-engineering/review/security-sentinel`")
     expect(result).not.toContain("compound-engineering:")
   })
 
-  test("preserves 2-segment skill references", () => {
+  test("preserves 2-segment skill references when skill not in index", () => {
     const input = 'load the `compound-engineering:document-review` skill'
-    // 2-segment refs are skill names, not agent names — left unchanged
+    // When skillNames is empty (backward-compat wrapper), 2-segment refs are left unchanged
     expect(transformSkillContentForOpenCode(input)).toBe(input)
   })
 
@@ -450,7 +671,7 @@ describe("transformSkillContentForOpenCode", () => {
   test("handles FQ names in JSON-like contexts", () => {
     const input = '  subagent_type: "compound-engineering:review:security-sentinel",'
     expect(transformSkillContentForOpenCode(input)).toBe(
-      '  subagent_type: "security-sentinel",'
+      '  subagent_type: "@compound-engineering/review/security-sentinel",'
     )
   })
 
@@ -467,9 +688,9 @@ describe("transformSkillContentForOpenCode", () => {
     }
   })
 
-  test("rewrites FQ names from any plugin namespace", () => {
-    const input = "- `other-plugin:category:my-agent`"
-    expect(transformSkillContentForOpenCode(input)).toBe("- `my-agent`")
+  test("rewrites compound-engineering FQ agent refs", () => {
+    const input = "- `compound-engineering:review:security-sentinel`"
+    expect(transformSkillContentForOpenCode(input)).toBe("- `@compound-engineering/review/security-sentinel`")
   })
 
   test("preserves bare agent names (no namespace)", () => {
@@ -477,11 +698,10 @@ describe("transformSkillContentForOpenCode", () => {
     expect(transformSkillContentForOpenCode(input)).toBe(input)
   })
 
-  test("rewrites 2-segment category:ce-agent refs to flat names", () => {
+  test("rewrites 2-segment category:ce-agent refs to @compound-engineering format", () => {
     const input = "Dispatch `review:ce-correctness-reviewer` for logic checks."
-    expect(transformSkillContentForOpenCode(input)).toBe(
-      "Dispatch `ce-correctness-reviewer` for logic checks.",
-    )
+    // With empty agentCategories (backward-compat), 2-segment refs are left unchanged
+    expect(transformSkillContentForOpenCode(input)).toBe(input)
   })
 
   test("preserves 2-segment refs without ce- prefix", () => {

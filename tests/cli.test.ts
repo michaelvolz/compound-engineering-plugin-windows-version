@@ -57,9 +57,9 @@ describe("CLI", () => {
 
     expect(stdout).toContain("Installed compound-engineering")
     expect(await exists(path.join(tempRoot, "opencode.json"))).toBe(true)
-    expect(await exists(path.join(tempRoot, ".opencode", "agents", "repo-research-analyst.md"))).toBe(true)
-    expect(await exists(path.join(tempRoot, ".opencode", "agents", "security-sentinel.md"))).toBe(true)
-    expect(await exists(path.join(tempRoot, ".opencode", "skills", "skill-one", "SKILL.md"))).toBe(true)
+    expect(await exists(path.join(tempRoot, ".opencode", "agents", "compound-engineering", "repo-research-analyst", "AGENT.md"))).toBe(true)
+    expect(await exists(path.join(tempRoot, ".opencode", "agents", "compound-engineering", "security-sentinel", "AGENT.md"))).toBe(true)
+    expect(await exists(path.join(tempRoot, ".opencode", "skills", "compound-engineering", "skill-one", "SKILL.md"))).toBe(true)
     expect(await exists(path.join(tempRoot, ".opencode", "plugins", "converted-hooks.ts"))).toBe(true)
   })
 
@@ -97,7 +97,7 @@ describe("CLI", () => {
     expect(stdout).toContain("Installed compound-engineering")
     // OpenCode global config lives at ~/.config/opencode per XDG spec
     expect(await exists(path.join(tempRoot, ".config", "opencode", "opencode.json"))).toBe(true)
-    expect(await exists(path.join(tempRoot, ".config", "opencode", "agents", "repo-research-analyst.md"))).toBe(true)
+    expect(await exists(path.join(tempRoot, ".config", "opencode", "agents", "compound-engineering", "repo-research-analyst", "AGENT.md"))).toBe(true)
   })
 
   test("list returns plugins in a temp workspace", async () => {
@@ -177,7 +177,7 @@ describe("CLI", () => {
     expect(stdout).toContain("Installed compound-engineering")
     // OpenCode global config lives at ~/.config/opencode per XDG spec
     expect(await exists(path.join(tempRoot, ".config", "opencode", "opencode.json"))).toBe(true)
-    expect(await exists(path.join(tempRoot, ".config", "opencode", "agents", "ce-repo-research-analyst.md"))).toBe(true)
+    expect(await exists(path.join(tempRoot, ".config", "opencode", "agents", "compound-engineering", "research", "ce-repo-research-analyst", "AGENT.md"))).toBe(true)
   })
 
   test("install uses bundled compound-engineering plugin for codex output", async () => {

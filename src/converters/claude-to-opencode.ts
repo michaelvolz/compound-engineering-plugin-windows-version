@@ -1,4 +1,5 @@
-import { formatFrontmatter } from "../utils/frontmatter"
+import path from "path"
+import { formatFrontmatter, parseFrontmatter } from "../utils/frontmatter"
 import { normalizeModelWithProvider } from "../utils/model"
 import {
   type ClaudeAgent,
@@ -67,8 +68,24 @@ export function convertClaudeToOpenCode(
   plugin: ClaudePlugin,
   options: ClaudeToOpenCodeOptions,
 ): OpenCodeBundle {
-  const agentFiles = plugin.agents.map((agent) => convertAgent(agent, options))
-  const cmdFiles = convertCommands(plugin.commands)
+  // Build indexes for reference rewriting
+  const skillNames = new Set<string>()
+  for (const skill of filterSkillsByPlatform(plugin.skills, "opencode")) {
+    if (skill.name) skillNames.add(skill.name)
+  }
+
+  const agentCategories = new Map<string, string>()
+  for (const agent of plugin.agents) {
+    const category = path.basename(path.dirname(agent.sourcePath))
+    if (category && category !== "." && category !== "agents") {
+      agentCategories.set(agent.name, category)
+    }
+  }
+
+  const transform = createTransformForOpenCode({ skillNames, agentCategories })
+
+  const agentFiles = plugin.agents.map((agent) => convertAgent(agent, options, transform))
+  const cmdFiles = convertCommands(plugin.commands, transform)
   const mcp = plugin.mcpServers ? convertMcp(plugin.mcpServers) : undefined
   const plugins = plugin.hooks ? [convertHooks(plugin.hooks)] : []
 
@@ -85,10 +102,11 @@ export function convertClaudeToOpenCode(
     commandFiles: cmdFiles,
     plugins,
     skillDirs: filterSkillsByPlatform(plugin.skills, "opencode").map((skill) => ({ sourceDir: skill.sourceDir, name: skill.name })),
+    namespace: plugin.manifest.name,
   }
 }
 
-function convertAgent(agent: ClaudeAgent, options: ClaudeToOpenCodeOptions) {
+function convertAgent(agent: ClaudeAgent, options: ClaudeToOpenCodeOptions, transform: (content: string) => string) {
   const frontmatter: Record<string, unknown> = {
     description: agent.description,
     mode: options.agentMode,
@@ -109,17 +127,18 @@ function convertAgent(agent: ClaudeAgent, options: ClaudeToOpenCodeOptions) {
     }
   }
 
-  const content = formatFrontmatter(frontmatter, rewriteClaudePaths(agent.body))
+  const content = transform(formatFrontmatter(frontmatter, agent.body))
 
   return {
     name: agent.name,
     content,
+    sourceDir: agent.sourcePath,
   }
 }
 
 // Commands are written as individual .md files rather than entries in opencode.json.
 // Chosen over JSON map because opencode resolves commands by filename at runtime (ADR-001).
-function convertCommands(commands: ClaudeCommand[]): OpenCodeCommandFile[] {
+function convertCommands(commands: ClaudeCommand[], transform: (content: string) => string): OpenCodeCommandFile[] {
   const files: OpenCodeCommandFile[] = []
   for (const command of commands) {
     if (command.disableModelInvocation) continue
@@ -129,7 +148,7 @@ function convertCommands(commands: ClaudeCommand[]): OpenCodeCommandFile[] {
     if (command.model && command.model !== "inherit") {
       frontmatter.model = normalizeModelWithProvider(command.model)
     }
-    const content = formatFrontmatter(frontmatter, rewriteClaudePaths(command.body))
+    const content = transform(formatFrontmatter(frontmatter, command.body))
     files.push({ name: command.name, content })
   }
   return files
@@ -266,37 +285,113 @@ function rewriteClaudePaths(body: string): string {
     .replace(/\.claude\//g, ".opencode/")
 }
 
+export type TransformIndexes = {
+  skillNames: Set<string>
+  agentCategories: Map<string, string>
+}
+
 /**
- * Transform skill/agent content for OpenCode compatibility.
- * Composes path rewriting with fully-qualified agent name flattening.
- *
- * OpenCode resolves agents by flat filename, so fully-qualified agent
- * references must be flattened. Both 3-segment legacy refs
- * (`compound-engineering:document-review:coherence-reviewer` -> `coherence-reviewer`)
- * and 2-segment category-qualified refs (`review:ce-correctness-reviewer` ->
- * `ce-correctness-reviewer`) are handled. 2-segment skill references without
- * `ce-` prefix (e.g. `compound-engineering:document-review`) are left unchanged.
- * See #477.
+ * Factory that creates a content transform function with access to skill and
+ * agent indexes. The transform rewrites agent references to
+ * `@compound-engineering/category/agentname`, skill references to
+ * `skill({ name: "..." })`, cleans frontmatter of model/temperature/provider
+ * fields, and preserves existing path rewriting.
+ */
+export function createTransformForOpenCode(indexes: TransformIndexes): (content: string) => string {
+  const { skillNames, agentCategories } = indexes
+
+  return (content: string): string => {
+    // Parse and clean frontmatter
+    const { data, body: rawBody } = parseFrontmatter(content)
+    const cleanedData = { ...data }
+    delete cleanedData.model
+    delete cleanedData.temperature
+    // Remove any provider-related fields
+    for (const key of Object.keys(cleanedData)) {
+      if (key.toLowerCase().includes("provider")) {
+        delete cleanedData[key]
+      }
+    }
+
+    // Apply body transforms in order
+    let body = rewriteClaudePaths(rawBody)
+
+    // 3-segment FQ agent refs: compound-engineering:cat:agent -> @compound-engineering/cat/agent
+    body = body.replace(
+      /(?<![a-z0-9:/-])compound-engineering:([a-z][a-z0-9-]*):([a-z][a-z0-9-]*)(?![a-z0-9:-])/g,
+      "@compound-engineering/$1/$2",
+    )
+
+    // 2-segment category-qualified agent refs: cat:ce-agent -> @compound-engineering/cat/ce-agent
+    // Only when category exists in agentCategories map
+    body = body.replace(
+      /(?<![a-z0-9:/-])([a-z][a-z0-9-]*):(ce-[a-z][a-z0-9-]*)(?![a-z0-9:-])/g,
+      (match, category, agentName) => {
+        const knownCategory = agentCategories.get(agentName)
+        if (knownCategory && knownCategory === category) {
+          return `@compound-engineering/${category}/${agentName}`
+        }
+        return match
+      },
+    )
+
+    // Bare agent names in backticks that are known agents
+    const agentNames = Array.from(agentCategories.keys())
+    for (const agentName of agentNames) {
+      const category = agentCategories.get(agentName)!
+      // Match backtick-wrapped agent name with word boundaries
+      const regex = new RegExp(`\\\`${agentName}\\\``, "g")
+      body = body.replace(regex, `@compound-engineering/${category}/${agentName}`)
+    }
+
+    // Skill FQ refs: compound-engineering:skill-name -> skill({ name: "skill-name" })
+    body = body.replace(
+      /(?<![a-z0-9:/-])compound-engineering:([a-z][a-z0-9-]*)(?![a-z0-9-:])/g,
+      (match, skillName) => {
+        if (skillNames.has(skillName)) {
+          return `skill({ name: "${skillName}" })`
+        }
+        return match
+      },
+    )
+
+    // Natural-language skill invocations
+    const skillPattern = Array.from(skillNames).filter((n) => n.startsWith("ce-")).join("|")
+    if (skillPattern) {
+      // "invoke the ce-plan skill" / "call ce-work agent" / "use ce-compound"
+      body = body.replace(
+        new RegExp(
+          `\\b(?:invoke|call|use|run|dispatch)\\s+(?:the\\s+)?(${skillPattern})\\s+(?:skill|agent)\\b`,
+          "gi",
+        ),
+        (match, skillName) => `skill({ name: "${skillName}" })`,
+      )
+      // Same without "skill"/"agent" suffix
+      body = body.replace(
+        new RegExp(
+          `\\b(?:invoke|call|use|run|dispatch)\\s+(?:the\\s+)?(${skillPattern})\\b`,
+          "gi",
+        ),
+        (match, skillName) => `skill({ name: "${skillName}" })`,
+      )
+      // Parenthetical form: (ce-plan skill)
+      body = body.replace(
+        new RegExp(`\\((${skillPattern})\\s+skill\\)`, "gi"),
+        (match, skillName) => `(skill({ name: "${skillName}" }))`,
+      )
+    }
+
+    return formatFrontmatter(cleanedData, body)
+  }
+}
+
+/**
+ * Backward-compatible wrapper around createTransformForOpenCode.
+ * Preserves the original signature for callers that don't need indexes.
  */
 export function transformSkillContentForOpenCode(body: string): string {
-  let result = rewriteClaudePaths(body)
-  // Rewrite 3-segment FQ agent refs: plugin:category:agent-name -> agent-name.
-  // Boundary assertions prevent partial matching on 4+ segment names
-  // (e.g. `a:b:c:d` would otherwise produce `c:d` or `a:d`).
-  // The `/` in the lookbehind prevents rewriting slash commands like
-  // `/team:ops:deploy` — agent names are never preceded by `/`.
-  result = result.replace(
-    /(?<![a-z0-9:/-])[a-z][a-z0-9-]*:[a-z][a-z0-9-]*:([a-z][a-z0-9-]*)(?![a-z0-9:-])/g,
-    "$1",
-  )
-  // Rewrite 2-segment category-qualified agent refs: category:ce-agent -> ce-agent.
-  // Only matches when the agent segment starts with `ce-` to avoid false positives
-  // on slash commands or other colon-separated patterns.
-  result = result.replace(
-    /(?<![a-z0-9:/-])[a-z][a-z0-9-]*:(ce-[a-z][a-z0-9-]*)(?![a-z0-9:-])/g,
-    "$1",
-  )
-  return result
+  const transform = createTransformForOpenCode({ skillNames: new Set(), agentCategories: new Map() })
+  return transform(body)
 }
 
 function inferTemperature(agent: ClaudeAgent): number | undefined {
