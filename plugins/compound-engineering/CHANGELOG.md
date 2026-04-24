@@ -9,6 +9,11 @@ All notable changes to the compound-engineering plugin will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.4] - 2026-04-24
+
+### Changed
+- **lfg:** add `ce-commit-push-pr` as step 8 so the full autonomous workflow ends with a pushed branch and open PR, not just `<promise>DONE</promise>`
+
 ## [3.0.3](https://github.com/EveryInc/compound-engineering-plugin/compare/compound-engineering-v3.0.2...compound-engineering-v3.0.3) (2026-04-24)
 
 
