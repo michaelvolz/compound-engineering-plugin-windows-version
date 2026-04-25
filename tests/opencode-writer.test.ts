@@ -3,8 +3,10 @@ import { promises as fs } from "fs"
 import path from "path"
 import os from "os"
 import { writeOpenCodeBundle } from "../src/targets/opencode"
-import { mergeJsonConfigAtKey } from "../src/sync/json-config"
+import { mergeJsonConfigAtKey } from "../src/utils/json-config"
 import type { OpenCodeBundle } from "../src/types/opencode"
+import { loadClaudePlugin } from "../src/parsers/claude"
+import { convertClaudeToOpenCode } from "../src/converters/claude-to-opencode"
 
 async function exists(filePath: string): Promise<boolean> {
   try {
@@ -19,6 +21,7 @@ describe("writeOpenCodeBundle", () => {
   test("writes config, agents as directories, plugins, and skills under namespace", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-test-"))
     const bundle: OpenCodeBundle = {
+      pluginName: "compound-engineering",
       config: { $schema: "https://opencode.ai/config.json" },
       agents: [{ name: "agent-one", content: "Agent content", sourceDir: "/tmp/agents/research/agent-one.agent.md" }],
       plugins: [{ name: "hook.ts", content: "export {}" }],
@@ -37,7 +40,8 @@ describe("writeOpenCodeBundle", () => {
     expect(await exists(path.join(tempRoot, "opencode.json"))).toBe(true)
     expect(await exists(path.join(tempRoot, ".opencode", "agents", "compound-engineering", "research", "agent-one", "AGENT.md"))).toBe(true)
     expect(await exists(path.join(tempRoot, ".opencode", "plugins", "hook.ts"))).toBe(true)
-    expect(await exists(path.join(tempRoot, ".opencode", "skills", "compound-engineering", "skill-one", "SKILL.md"))).toBe(true)
+    expect(await exists(path.join(tempRoot, ".opencode", "skills", "skill-one", "SKILL.md"))).toBe(true)
+    expect(await exists(path.join(tempRoot, ".opencode", "compound-engineering", "install-manifest.json"))).toBe(true)
   })
 
   test("writes directly into a .opencode output root", async () => {
@@ -92,20 +96,30 @@ describe("writeOpenCodeBundle", () => {
     expect(await exists(path.join(outputRoot, ".opencode"))).toBe(false)
   })
 
-  test("agent without category sourceDir writes to namespace root", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-agent-nocat-"))
+  test("scope='global' forces flat layout for OPENCODE_CONFIG_DIR-style roots with non-conventional basenames", async () => {
+    // Simulates OPENCODE_CONFIG_DIR pointing to a directory whose basename is
+    // neither "opencode" nor ".opencode" (e.g. NixOS, Docker, custom XDG_CONFIG_HOME).
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-env-dir-"))
+    const outputRoot = path.join(tempRoot, "custom-opencode-config")
     const bundle: OpenCodeBundle = {
       config: { $schema: "https://opencode.ai/config.json" },
-      agents: [{ name: "flat-agent", content: "Flat content", sourceDir: "/tmp/agents/flat-agent.md" }],
+      agents: [{ name: "agent-one", content: "Agent content" }],
       plugins: [],
       commandFiles: [],
-      skillDirs: [],
-      namespace: "compound-engineering",
+      skillDirs: [
+        {
+          name: "skill-one",
+          sourceDir: path.join(import.meta.dir, "fixtures", "sample-plugin", "skills", "skill-one"),
+        },
+      ],
     }
 
-    await writeOpenCodeBundle(tempRoot, bundle)
+    await writeOpenCodeBundle(outputRoot, bundle, "global")
 
-    expect(await exists(path.join(tempRoot, ".opencode", "agents", "compound-engineering", "flat-agent", "AGENT.md"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "opencode.json"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "agents", "agent-one.md"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "skills", "skill-one", "SKILL.md"))).toBe(true)
+    expect(await exists(path.join(outputRoot, ".opencode"))).toBe(false)
   })
 
   test("merges plugin config into existing opencode.json without destroying user keys", async () => {
@@ -347,171 +361,244 @@ describe("writeOpenCodeBundle", () => {
     expect(backupContent).toBe("old content\n")
   })
 
-  test("enforces LF line endings on written files", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-lf-"))
-    const bundle: OpenCodeBundle = {
+  test("removes previously managed OpenCode artifacts that disappear on reinstall", async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-managed-cleanup-"))
+    const outputRoot = path.join(tempRoot, ".opencode")
+
+    await writeOpenCodeBundle(outputRoot, {
+      pluginName: "compound-engineering",
       config: { $schema: "https://opencode.ai/config.json" },
-      agents: [{ name: "lf-agent", content: "Line 1\r\nLine 2\r\n", sourceDir: "/tmp/agents/lf-agent.md" }],
+      agents: [{ name: "old-agent", content: "Agent content" }],
+      plugins: [{ name: "hook.ts", content: "export {}" }],
+      commandFiles: [{ name: "old:cmd", content: "old" }],
+      skillDirs: [
+        {
+          name: "skill-one",
+          sourceDir: path.join(import.meta.dir, "fixtures", "sample-plugin", "skills", "skill-one"),
+        },
+      ],
+    })
+
+    await writeOpenCodeBundle(outputRoot, {
+      pluginName: "compound-engineering",
+      config: { $schema: "https://opencode.ai/config.json" },
+      agents: [{ name: "new-agent", content: "Agent content" }],
       plugins: [],
-      commandFiles: [{ name: "lf-cmd", content: "Cmd 1\r\nCmd 2\r\n" }],
+      commandFiles: [{ name: "new:cmd", content: "new" }],
       skillDirs: [],
-      namespace: "compound-engineering",
-    }
+    })
 
-    await writeOpenCodeBundle(tempRoot, bundle)
-
-    const agentContent = await fs.readFile(
-      path.join(tempRoot, ".opencode", "agents", "compound-engineering", "lf-agent", "AGENT.md"),
-      "utf8"
-    )
-    expect(agentContent).not.toContain("\r")
-    expect(agentContent).toContain("\n")
-
-    const cmdContent = await fs.readFile(
-      path.join(tempRoot, ".opencode", "commands", "lf-cmd.md"),
-      "utf8"
-    )
-    expect(cmdContent).not.toContain("\r")
-    expect(cmdContent).toContain("\n")
+    expect(await exists(path.join(outputRoot, "agents", "old-agent.md"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "agents", "new-agent.md"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "plugins", "hook.ts"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "commands", "old", "cmd.md"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "commands", "new", "cmd.md"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "skills", "skill-one", "SKILL.md"))).toBe(false)
   })
 
-  test("migrates existing flat skill dir to namespace subfolder", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-migrate-skill-"))
+  test("namespaces managed install manifests per plugin so installs do not collide", async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-multi-plugin-"))
     const outputRoot = path.join(tempRoot, ".opencode")
-    const skillsDir = path.join(outputRoot, "skills")
-    const oldSkillDir = path.join(skillsDir, "test-skill")
-    await fs.mkdir(oldSkillDir, { recursive: true })
-    await fs.writeFile(path.join(oldSkillDir, "SKILL.md"), "Old skill content\n")
 
-    // Create a real source skill dir for copySkillDir
-    const srcSkillDir = path.join(tempRoot, "src-skill")
-    await fs.mkdir(srcSkillDir, { recursive: true })
-    await fs.writeFile(path.join(srcSkillDir, "SKILL.md"), "---\nname: test-skill\n---\n\nNew skill content\n")
-
-    const bundle: OpenCodeBundle = {
+    // Install plugin A first, with a skill and an agent
+    await writeOpenCodeBundle(outputRoot, {
+      pluginName: "compound-engineering",
       config: { $schema: "https://opencode.ai/config.json" },
-      agents: [],
+      agents: [{ name: "ce-agent", content: "ce agent" }],
       plugins: [],
       commandFiles: [],
-      skillDirs: [{ name: "test-skill", sourceDir: srcSkillDir }],
-      namespace: "compound-engineering",
-    }
+      skillDirs: [
+        {
+          name: "ce-skill",
+          sourceDir: path.join(import.meta.dir, "fixtures", "sample-plugin", "skills", "skill-one"),
+        },
+      ],
+    })
 
-    await writeOpenCodeBundle(outputRoot, bundle)
-
-    expect(await exists(oldSkillDir)).toBe(false)
-    expect(await exists(path.join(skillsDir, "compound-engineering", "test-skill", "SKILL.md"))).toBe(true)
-  })
-
-  test("migrates existing flat agent file to directory structure", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-migrate-agent-"))
-    const outputRoot = path.join(tempRoot, ".opencode")
-    const agentsDir = path.join(outputRoot, "agents")
-    await fs.mkdir(agentsDir, { recursive: true })
-    await fs.writeFile(path.join(agentsDir, "test-agent.md"), "Old agent content\n")
-
-    const bundle: OpenCodeBundle = {
+    // Install plugin B into the same OpenCode root
+    await writeOpenCodeBundle(outputRoot, {
+      pluginName: "coding-tutor",
       config: { $schema: "https://opencode.ai/config.json" },
-      agents: [{ name: "test-agent", content: "New content", sourceDir: "/tmp/agents/research/test-agent.agent.md" }],
+      agents: [{ name: "tutor-agent", content: "tutor agent" }],
+      plugins: [],
+      commandFiles: [],
+      skillDirs: [
+        {
+          name: "tutor-skill",
+          sourceDir: path.join(import.meta.dir, "fixtures", "sample-plugin", "skills", "skill-one"),
+        },
+      ],
+    })
+
+    // Both plugins must keep their own namespaced manifest
+    expect(await exists(path.join(outputRoot, "compound-engineering", "install-manifest.json"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "coding-tutor", "install-manifest.json"))).toBe(true)
+
+    // Reinstall plugin A with no agents/skills — it must clean up only its own
+    // managed artifacts, leaving plugin B's intact (the bug the namespacing fix
+    // addresses: a shared manifest path would have lost B's manifest after A was
+    // installed, and a later A reinstall would skip B's stale-file cleanup).
+    await writeOpenCodeBundle(outputRoot, {
+      pluginName: "compound-engineering",
+      config: { $schema: "https://opencode.ai/config.json" },
+      agents: [],
       plugins: [],
       commandFiles: [],
       skillDirs: [],
-      namespace: "compound-engineering",
-    }
+    })
 
-    await writeOpenCodeBundle(outputRoot, bundle)
-
-    expect(await exists(path.join(agentsDir, "test-agent.md"))).toBe(false)
-    expect(await exists(path.join(agentsDir, "compound-engineering", "research", "test-agent", "AGENT.md"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "agents", "ce-agent.md"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "skills", "ce-skill"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "agents", "tutor-agent.md"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "skills", "tutor-skill"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "coding-tutor", "install-manifest.json"))).toBe(true)
   })
 
-  test("does not migrate non-CE files", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-no-migrate-"))
+  test("moves legacy OpenCode CE artifacts to a namespaced backup", async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-legacy-artifacts-"))
     const outputRoot = path.join(tempRoot, ".opencode")
-    const skillsDir = path.join(outputRoot, "skills")
-    const agentsDir = path.join(outputRoot, "agents")
-    const customSkillDir = path.join(skillsDir, "my-custom-skill")
-    await fs.mkdir(customSkillDir, { recursive: true })
-    await fs.mkdir(agentsDir, { recursive: true })
-    await fs.writeFile(path.join(customSkillDir, "SKILL.md"), "Custom skill\n")
-    await fs.writeFile(path.join(agentsDir, "my-agent.md"), "Custom agent\n")
 
-    // Create a real source skill dir for copySkillDir
-    const srcSkillDir = path.join(tempRoot, "src-ce-skill")
-    await fs.mkdir(srcSkillDir, { recursive: true })
-    await fs.writeFile(path.join(srcSkillDir, "SKILL.md"), "---\nname: ce-skill\n---\n\nCE skill content\n")
+    await fs.mkdir(path.join(outputRoot, "skills", "reproduce-bug"), { recursive: true })
+    await fs.writeFile(path.join(outputRoot, "skills", "reproduce-bug", "SKILL.md"), "legacy removed skill")
+    await fs.mkdir(path.join(outputRoot, "agents"), { recursive: true })
+    await fs.writeFile(path.join(outputRoot, "agents", "bug-reproduction-validator.md"), "legacy removed agent")
+    await fs.mkdir(path.join(outputRoot, "commands"), { recursive: true })
+    await fs.writeFile(path.join(outputRoot, "commands", "reproduce-bug.md"), "legacy removed command")
+    await fs.writeFile(path.join(outputRoot, "commands", "report-bug.md"), "legacy deleted command")
 
-    const bundle: OpenCodeBundle = {
-      config: { $schema: "https://opencode.ai/config.json" },
-      agents: [{ name: "ce-agent", content: "CE content", sourceDir: "/tmp/agents/ce-agent.md" }],
-      plugins: [],
-      commandFiles: [],
-      skillDirs: [{ name: "ce-skill", sourceDir: srcSkillDir }],
-      namespace: "compound-engineering",
-    }
-
+    const plugin = await loadClaudePlugin(path.join(import.meta.dir, "..", "plugins", "compound-engineering"))
+    const bundle = convertClaudeToOpenCode(plugin, {
+      agentMode: "subagent",
+      inferTemperature: true,
+      permissions: "none",
+    })
     await writeOpenCodeBundle(outputRoot, bundle)
 
-    // Non-CE files should remain untouched
-    expect(await exists(path.join(customSkillDir, "SKILL.md"))).toBe(true)
-    expect(await exists(path.join(agentsDir, "my-agent.md"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "skills", "reproduce-bug"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "agents", "bug-reproduction-validator.md"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "commands", "reproduce-bug.md"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "commands", "report-bug.md"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "compound-engineering", "legacy-backup"))).toBe(true)
   })
 
-  test("verification pass throws on remaining Claude-style reference", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-verify-fail-"))
+  test("upgrades from pre-namespacing legacy shared manifest for non-CE plugins", async () => {
+    // Pre-namespacing, ALL plugins wrote their install manifest to the same
+    // shared path: `<root>/compound-engineering/install-manifest.json`. After
+    // the namespacing fix, a plugin like `coding-tutor` reads from its own
+    // scoped path (`<root>/coding-tutor/install-manifest.json`), which does
+    // not exist on the first reinstall after upgrade. Without a fallback, the
+    // manifest resolves to null and the writer skips cleanup, leaving stale
+    // files from the pre-namespacing install in place. This test exercises
+    // the fallback read of the legacy shared manifest.
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-legacy-manifest-"))
     const outputRoot = path.join(tempRoot, ".opencode")
 
-    // Create a skill file with a remaining FQ reference that bypasses the transform
-    const skillSrcDir = path.join(tempRoot, "src-skill")
-    await fs.mkdir(skillSrcDir, { recursive: true })
+    // Seed the legacy shared manifest at the OLD path, recording artifacts
+    // that the previous coding-tutor install placed in the root.
+    await fs.mkdir(path.join(outputRoot, "compound-engineering"), { recursive: true })
     await fs.writeFile(
-      path.join(skillSrcDir, "SKILL.md"),
-      "---\nname: verify-test\n---\n\nUse `compound-engineering:review:security-sentinel` here.\n"
+      path.join(outputRoot, "compound-engineering", "install-manifest.json"),
+      JSON.stringify({
+        version: 1,
+        pluginName: "coding-tutor",
+        groups: {
+          agents: ["stale-tutor-agent.md"],
+          commands: ["stale-tutor-cmd.md"],
+          plugins: [],
+          skills: ["stale-tutor-skill"],
+        },
+      }),
     )
 
-    const bundle: OpenCodeBundle = {
+    // Seed the stale artifacts on disk as they'd exist from the prior install.
+    await fs.mkdir(path.join(outputRoot, "agents"), { recursive: true })
+    await fs.writeFile(path.join(outputRoot, "agents", "stale-tutor-agent.md"), "stale")
+    await fs.mkdir(path.join(outputRoot, "commands"), { recursive: true })
+    await fs.writeFile(path.join(outputRoot, "commands", "stale-tutor-cmd.md"), "stale")
+    await fs.mkdir(path.join(outputRoot, "skills", "stale-tutor-skill"), { recursive: true })
+    await fs.writeFile(
+      path.join(outputRoot, "skills", "stale-tutor-skill", "SKILL.md"),
+      "stale",
+    )
+
+    // Reinstall coding-tutor with a new, non-overlapping set of artifacts.
+    await writeOpenCodeBundle(outputRoot, {
+      pluginName: "coding-tutor",
       config: { $schema: "https://opencode.ai/config.json" },
-      agents: [],
+      agents: [{ name: "fresh-tutor-agent", content: "fresh" }],
       plugins: [],
       commandFiles: [],
-      skillDirs: [{ name: "verify-test", sourceDir: skillSrcDir }],
-      namespace: "compound-engineering",
-    }
+      skillDirs: [
+        {
+          name: "fresh-tutor-skill",
+          sourceDir: path.join(import.meta.dir, "fixtures", "sample-plugin", "skills", "skill-one"),
+        },
+      ],
+    })
 
-    // The transform should rewrite the FQ reference, so verification should pass
-    await writeOpenCodeBundle(outputRoot, bundle)
+    // Stale artifacts from the legacy manifest must be cleaned up.
+    expect(await exists(path.join(outputRoot, "agents", "stale-tutor-agent.md"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "commands", "stale-tutor-cmd.md"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "skills", "stale-tutor-skill"))).toBe(false)
 
-    // Verify the file was written and transformed
-    const skillContent = await fs.readFile(
-      path.join(outputRoot, "skills", "compound-engineering", "verify-test", "SKILL.md"),
-      "utf8"
-    )
-    expect(skillContent).toContain("@compound-engineering/review/security-sentinel")
-    expect(skillContent).not.toContain("compound-engineering:review:security-sentinel")
+    // Fresh artifacts must be written under the plugin-scoped manifest path.
+    expect(await exists(path.join(outputRoot, "agents", "fresh-tutor-agent.md"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "skills", "fresh-tutor-skill", "SKILL.md"))).toBe(true)
+    expect(await exists(path.join(outputRoot, "coding-tutor", "install-manifest.json"))).toBe(true)
+
+    // The legacy shared manifest must be archived so it doesn't keep
+    // misleading a future install (and must no longer exist at the old path).
+    expect(await exists(path.join(outputRoot, "compound-engineering", "install-manifest.json"))).toBe(false)
+    expect(await exists(path.join(outputRoot, "coding-tutor", "legacy-backup"))).toBe(true)
   })
 
-  test("verification pass succeeds when all references are clean", async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-verify-pass-"))
+  test("leaves legacy shared manifest alone when it belongs to a different plugin", async () => {
+    // Reinforces the cross-plugin safety: a legacy manifest owned by plugin
+    // A must not be consumed or cleaned up by plugin B's first namespaced
+    // install. Plugin A's own next install is responsible for migrating it.
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-legacy-other-plugin-"))
     const outputRoot = path.join(tempRoot, ".opencode")
 
-    const skillSrcDir = path.join(tempRoot, "src-skill")
-    await fs.mkdir(skillSrcDir, { recursive: true })
+    await fs.mkdir(path.join(outputRoot, "compound-engineering"), { recursive: true })
+    const legacyManifest = {
+      version: 1,
+      pluginName: "some-other-plugin",
+      groups: {
+        agents: ["other-plugin-agent.md"],
+        commands: [],
+        plugins: [],
+        skills: [],
+      },
+    }
     await fs.writeFile(
-      path.join(skillSrcDir, "SKILL.md"),
-      "---\nname: clean-skill\n---\n\nUse `@compound-engineering/review/security-sentinel` here.\n"
+      path.join(outputRoot, "compound-engineering", "install-manifest.json"),
+      JSON.stringify(legacyManifest),
     )
+    await fs.mkdir(path.join(outputRoot, "agents"), { recursive: true })
+    await fs.writeFile(path.join(outputRoot, "agents", "other-plugin-agent.md"), "other")
 
-    const bundle: OpenCodeBundle = {
+    await writeOpenCodeBundle(outputRoot, {
+      pluginName: "coding-tutor",
       config: { $schema: "https://opencode.ai/config.json" },
-      agents: [],
+      agents: [{ name: "tutor-agent", content: "tutor" }],
       plugins: [],
       commandFiles: [],
-      skillDirs: [{ name: "clean-skill", sourceDir: skillSrcDir }],
-      namespace: "compound-engineering",
-    }
+      skillDirs: [],
+    })
 
-    // Should not throw
-    await expect(writeOpenCodeBundle(outputRoot, bundle)).resolves.toBeUndefined()
+    // Other plugin's artifact is left alone.
+    expect(await exists(path.join(outputRoot, "agents", "other-plugin-agent.md"))).toBe(true)
+    // Other plugin's legacy manifest is left at the legacy path.
+    expect(
+      await exists(path.join(outputRoot, "compound-engineering", "install-manifest.json")),
+    ).toBe(true)
+    const preserved = JSON.parse(
+      await fs.readFile(
+        path.join(outputRoot, "compound-engineering", "install-manifest.json"),
+        "utf8",
+      ),
+    )
+    expect(preserved.pluginName).toBe("some-other-plugin")
   })
 })
 
