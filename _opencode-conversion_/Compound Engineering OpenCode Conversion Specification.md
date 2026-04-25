@@ -10,8 +10,8 @@ The converter MUST replicate the exact folder structure from the source, includi
 **Skills:** `~/.config/opencode/skills/compound-engineering/<skill-directory-name>/SKILL.md`  
 The converter copies the entire original skill directory (all subfolders and files). All internal references remain relative to the skill root directory. The frontmatter `name:` value is the canonical identifier — independent of the directory name.
 
-**Agents:** `~/.config/opencode/agents/compound-engineering/[category]/<agent-directory-name>/`  
-The converter copies all files and subdirectories from the source, transforming the agent `.md` file while preserving its original name.
+**Agents:** `~/.config/opencode/agents/compound-engineering/<agent-name>.agent.md`
+The converter writes each agent as a `.agent.md` file (flat structure, no category subfolders, original filename preserved).
 
 **Frontmatter:**  
 Retain `name:`, `description:`, and mode fields exactly. Remove hardcoded `model:`, `temperature:`, or provider fields.
@@ -20,11 +20,9 @@ Retain `name:`, `description:`, and mode fields exactly. Remove hardcoded `model
 
 **Invocation Syntax**
 
-**Agents:** `compound-engineering:category:agentname` → `@compound-engineering/category/agentname`  
-Use the full path exactly. Never use bare agent names, colon syntax, or any shortened form.
+**Agents:** All agent references including bare names (`` `ce-xxx` ``) → `@compound-engineering/ce-xxx`
 
-**Skills:** All skill references (natural language, FQ form, bare names) → `skill({ name: "exact-value-from-frontmatter-name" })`  
-Never use slash syntax, dollar syntax, or any other form.
+**Skills:** All skill references including bare names (`` `ce-xxx` ``) → `skill({ name: "ce-xxx" })`
 
 ---
 
@@ -54,11 +52,11 @@ Dispatch `research:ce-slack-researcher` with the user's topic as the task prompt
 **Transform to:**
 
 ```
-@compound-engineering/research/ce-learnings-researcher
-@compound-engineering/workflow/ce-pr-comment-resolver
-@compound-engineering/research/ce-slack-researcher
-@compound-engineering/review/ce-architecture-strategist
-@compound-engineering/review/ce-performance-oracle
+@compound-engineering/ce-learnings-researcher
+@compound-engineering/ce-pr-comment-resolver
+@compound-engineering/ce-slack-researcher
+@compound-engineering/ce-architecture-strategist
+@compound-engineering/ce-performance-oracle
 ```
 
 **Skill reference patterns (from source):**
@@ -97,7 +95,20 @@ skill({ name: "ce-work-beta" })
 - The `name:` field in frontmatter (stays exactly as-is)
 - The `description:` field in frontmatter (stays as-is)
 - Shell variable names containing skill names (e.g., `SCRATCH_DIR=".../ce-plan-..."` stays)
-- **Remove from agents**: `model:`, `temperature:`, `tools:`, `color:` fields (invalid for target)
+- **Remove from agents**: `model:`, `temperature:`, `color:` fields (invalid for target)
+- **Transform `tools:` field**: Convert comma-separated list to OpenCode YAML object format
+
+  ```
+  # compound-engineering source (invalid)
+  tools: Read, Grep, Glob, Bash
+
+  # OpenCode target (valid)
+  tools:
+    read: true
+    grep: true
+    glob: true
+    bash: true
+  ```
 
 ---
 
@@ -105,7 +116,7 @@ skill({ name: "ce-work-beta" })
 
 After conversion, verify all `.agent.md` and `SKILL.md` files contain only the canonical invocation syntax:
 
-- Agents: `@compound-engineering/...` format only
+- Agents: `@compound-engineering/xxx` format (original filename preserved, including prefix if present)
 - Skills: `skill({ name: "..." })` format only
 - No slash syntax (`/ce-xxx`), colon syntax (`xxx:ce-yyy`), bare names, or backtick-enclosed names remain
 
