@@ -11,7 +11,7 @@ The converter MUST replicate the exact folder structure from the source, includi
 The converter copies the entire original skill directory (all subfolders and files). All internal references remain relative to the skill root directory. The frontmatter `name:` value is the canonical identifier — independent of the directory name.
 
 **Agents:** `~/.config/opencode/agents/compound-engineering/[category]/<agent-directory-name>/`  
-The converter writes the transformed main `.md` file and copies all other files and subdirectories from the source.
+The converter copies all files and subdirectories from the source, transforming the agent `.md` file while preserving its original name.
 
 **Frontmatter:**  
 Retain `name:`, `description:`, and mode fields exactly. Remove hardcoded `model:`, `temperature:`, or provider fields.
@@ -82,28 +82,31 @@ skill({ name: "ce-work-beta" })
 **Search priority:**
 
 1. Unambiguous FQ forms: `compound-engineering:`, `research:`, `document-review:`, `review:`, `workflow:`, `design:`, `docs:` (in agents/skills context)
-2. Backtick-enclosed bare names adjacent to action verbs: "load ce-X", "call ce-X", "invoke ce-X", "use ce-X", "run ce-X"
-3. Slash syntax in prose: `/ce-plan`, `/ce-work`
-4. Frontmatter `name:` field values used in prose as instructions
+2. Slash syntax anywhere `/ce-plan`, `/ce-work`
+3. Bare names in prose: "load ce-X", "call ce-X", "invoke ce-X"
+4. Backtick-enclosed bare names: `ce-X`
 
-**Build the canonical list first:** Collect all `name:` values from all frontmatter in skill SKILL.md files. Then scan each generated `.md` file for each canonical name. Any match outside fenced code blocks = fail-fast with file and line.
+**Build the canonical list first:** Collect all `name:` values from all frontmatter in skill SKILL.md files and agent .agent.md files. Then scan each transformed file for references. Any untransformed reference = fail-fast.
+
+**Scope:** Only `.agent.md` and `SKILL.md` files are transformed. All files in `references/` subdirectories are NEVER touched.
+
+**What TO transform:** All skill/agent references anywhere in these files — including prose, code blocks, and examples — because they represent actionable invocations the AI should follow.
 
 **Do NOT transform:**
 
-- References inside fenced code blocks (\`\`\`) or inline code (\`\`\`)
-- Shell variable names that happen to contain skill names (e.g., `SCRATCH_DIR=".../ce-plan-..."`)
-- The `name:` field itself in frontmatter
-- The frontmatter `description:` field (natural language is acceptable there)
-- References in `references/` files that are data paths or cache keys, not invocation instructions
+- The `name:` field in frontmatter (stays exactly as-is)
+- The `description:` field in frontmatter (stays as-is)
+- Shell variable names containing skill names (e.g., `SCRATCH_DIR=".../ce-plan-..."` stays)
+- **Remove from agents**: `model:`, `temperature:`, `tools:`, `color:` fields (invalid for target)
 
 ---
 
 **Verification**
 
-After conversion, verify all generated `.md` files contain only the canonical invocation syntax:
+After conversion, verify all `.agent.md` and `SKILL.md` files contain only the canonical invocation syntax:
 
 - Agents: `@compound-engineering/...` format only
 - Skills: `skill({ name: "..." })` format only
-- No slash syntax, dollar syntax, colon syntax, bare names, or natural language references remain
+- No slash syntax (`/ce-xxx`), colon syntax (`xxx:ce-yyy`), bare names, or backtick-enclosed names remain
 
 This specification is complete and authoritative.
