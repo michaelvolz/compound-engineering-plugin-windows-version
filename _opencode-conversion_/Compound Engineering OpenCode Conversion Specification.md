@@ -120,4 +120,62 @@ After conversion, verify all `.agent.md` and `SKILL.md` files contain only the c
 - Skills: `skill({ name: "..." })` format only
 - No slash syntax (`/ce-xxx`), colon syntax (`xxx:ce-yyy`), bare names, or backtick-enclosed names remain
 
-This specification is complete and authoritative.
+---
+
+## Conversion Rules
+
+### Path Transformations
+
+- `~/.claude/` → `~/.config/opencode/`
+- `.claude/` → `.opencode/`
+
+### Tool Name Mapping (TOOL_MAP)
+
+```
+todowrite → todowrite
+todoread → todoread
+(question, task, skill, grep, glob, etc. - unchanged)
+```
+
+### Reference Syntax Transformations
+
+| Source Pattern                        | OpenCode Target                           |
+| ------------------------------------- | ----------------------------------------- |
+| `compound-engineering:cat:agent`      | `@compound-engineering/cat/agent`         |
+| `compound-engineering:skill-name`     | `skill({ name: "skill-name" })`           |
+| Backtick-wrapped `` `ce-agent` ``     | `@compound-engineering/category/ce-agent` |
+| Natural language: "invoke ce-X skill" | `skill({ name: "ce-X" })`                 |
+
+### DO NOT TRANSFORM
+
+- Cross-platform tool documentation (e.g., "`AskUserQuestion` in Claude Code, `request_user_input` in Codex") — preserve as-is
+- `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_SKILL_DIR}` — no OpenCode equivalent exists, leave unchanged
+- Shell variables containing skill names (e.g., `SCRATCH_DIR=".../ce-plan-..."`)
+
+### Pre-Resolution Patterns
+
+Patterns using `!**`command`**` syntax are resolved at runtime. The converter does not transform the content inside backticks — they remain as authored.
+
+### Session Historian Support (OpenCode)
+
+OpenCode session format differs from Claude Code/Codex:
+
+| Platform    | Path                                                                       | Format | Key Fields                                           |
+| ----------- | -------------------------------------------------------------------------- | ------ | ---------------------------------------------------- |
+| Claude Code | `~/.claude/projects/<encoded-cwd>/`                                        | JSONL  | `type`, `content[]`, `gitBranch`, `cwd`              |
+| OpenCode    | `~/.local/share/opencode/storage/session/{projectHash}/`                   | JSON   | `id`, `parentID`, `title`, `projectID`, `directory`  |
+| OpenCode    | `~/.local/share/opencode/storage/message/{sessionID}/msg_{messageID}.json` | JSON   | `id`, `sessionID`, `role`, `time.created`, `parts[]` |
+| Codex       | `~/.codex/sessions/YYYY/MM/DD/`                                            | JSONL  | `session_meta`, `turn_context`                       |
+| Cursor      | `~/.cursor/projects/<encoded-cwd>/agent-transcripts/`                      | JSONL  | `role`, `content[]`                                  |
+
+**OpenCode specifics:**
+
+- Session IDs: `ses_561eca5ebffeCngoybZWxbTrD8` format
+- Message IDs: `msg_xxx` format
+- Project encoding: Uses hash, not path encoding like Claude Code
+- Message structure: Separate JSON files per message, not JSONL
+- Implementation: Scripts (`discover-sessions.sh`, `extract-metadata.py`, `extract-skeleton.py`, `extract-errors.py`) updated to support OpenCode discovery and parsing alongside Claude Code, Codex, and Cursor
+
+---
+
+_This specification is an LLM prompt reference for transforming Claude Code plugin source files into OpenCode format. It provides a 10,000-foot overview of required transformations without implementation details. All rules apply to conversion output only — source files remain unchanged._
