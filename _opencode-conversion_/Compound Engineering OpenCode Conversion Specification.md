@@ -158,23 +158,57 @@ Patterns using `!**`command`**` syntax are resolved at runtime. The converter do
 
 ### Session Historian Support (OpenCode)
 
-OpenCode session format differs from Claude Code/Codex:
+**OpenCode 1.14+ uses SQLite, not JSON files.**
 
-| Platform    | Path                                                                       | Format | Key Fields                                           |
-| ----------- | -------------------------------------------------------------------------- | ------ | ---------------------------------------------------- |
-| Claude Code | `~/.claude/projects/<encoded-cwd>/`                                        | JSONL  | `type`, `content[]`, `gitBranch`, `cwd`              |
-| OpenCode    | `~/.local/share/opencode/storage/session/{projectHash}/`                   | JSON   | `id`, `parentID`, `title`, `projectID`, `directory`  |
-| OpenCode    | `~/.local/share/opencode/storage/message/{sessionID}/msg_{messageID}.json` | JSON   | `id`, `sessionID`, `role`, `time.created`, `parts[]` |
-| Codex       | `~/.codex/sessions/YYYY/MM/DD/`                                            | JSONL  | `session_meta`, `turn_context`                       |
-| Cursor      | `~/.cursor/projects/<encoded-cwd>/agent-transcripts/`                      | JSONL  | `role`, `content[]`                                  |
+| Platform    | Path                                                  | Format | Key Fields                                                                        |
+| ----------- | ----------------------------------------------------- | ------ | --------------------------------------------------------------------------------- |
+| Claude Code | `~/.claude/projects/<encoded-cwd>/`                   | JSONL  | `type`, `content[]`, `gitBranch`, `cwd`                                           |
+| OpenCode    | `~/.local/share/opencode/opencode.db`                 | SQLite | `session` table: `id`, `project_id`, `directory`, `title`, `slug`, `time_created` |
+| OpenCode    | `~/.local/share/opencode/opencode.db`                 | SQLite | `message` table: `id`, `session_id`, `time_created`, `data` (JSON blob)           |
+| Codex       | `~/.codex/sessions/YYYY/MM/DD/`                       | JSONL  | `session_meta`, `turn_context`                                                    |
+| Cursor      | `~/.cursor/projects/<encoded-cwd>/agent-transcripts/` | JSONL  | `role`, `content[]`                                                               |
 
-**OpenCode specifics:**
+**OpenCode SQLite schema:**
 
-- Session IDs: `ses_561eca5ebffeCngoybZWxbTrD8` format
-- Message IDs: `msg_xxx` format
-- Project encoding: Uses hash, not path encoding like Claude Code
-- Message structure: Separate JSON files per message, not JSONL
-- Implementation: Scripts (`discover-sessions.sh`, `extract-metadata.py`, `extract-skeleton.py`, `extract-errors.py`) updated to support OpenCode discovery and parsing alongside Claude Code, Codex, and Cursor
+```sql
+-- session table
+CREATE TABLE session (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  parent_id TEXT,
+  slug TEXT NOT NULL,
+  directory TEXT NOT NULL,
+  title TEXT NOT NULL,
+  version TEXT NOT NULL,
+  time_created INTEGER NOT NULL,
+  time_updated INTEGER NOT NULL
+);
+
+-- message table
+CREATE TABLE message (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  time_created INTEGER NOT NULL,
+  data TEXT NOT NULL);  -- JSON blob containing role, parts, etc.
+```
+
+**Query examples:**
+
+```bash
+# Find sessions by directory
+sqlite3 ~/.local/share/opencode/opencode.db \
+  "SELECT id, title, directory FROM session WHERE directory LIKE '%/my-repo%'"
+
+# Get messages for a session
+sqlite3 ~/.local/share/opencode/opencode.db \
+  "SELECT id, time_created FROM message WHERE session_id = 'ses_xxx' ORDER BY time_created"
+```
+
+**Implementation notes:**
+
+- Scripts must use SQLite queries instead of file system scanning
+- Session historian scripts (`discover-sessions.sh`, `extract-metadata.py`) need SQLite query support alongside existing JSONL parsing for Claude Code, Codex, and Cursor
+- Legacy `session_diff/` directory may contain old JSON files but is not the primary storage
 
 ---
 
