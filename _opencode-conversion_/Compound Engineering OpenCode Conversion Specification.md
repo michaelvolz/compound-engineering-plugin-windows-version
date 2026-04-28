@@ -156,7 +156,49 @@ skill({ name: "ce-work-beta" })
 
 **Build the canonical list first:** Collect all `name:` values from all frontmatter in skill SKILL.md files and agent .agent.md files. Then scan each transformed file for references. Any untransformed reference = fail-fast.
 
-**Scope:** Only `.agent.md` and `SKILL.md` files are transformed. All files in `references/` subdirectories are NEVER touched.
+**CRITICAL: The canonical lists must be used during transformation, not after.** The transformation logic must check each `/ce-xxx` reference against both lists to determine the correct output format:
+
+```
+# Pseudocode for transformation (must use this logic):
+for each /ce-xxx reference in source:
+    if xxx is in AGENT_CANONICAL_LIST:
+        output = @compound-engineering/ce-xxx
+    else if xxx is in SKILL_CANONICAL_LIST:
+        output = skill({ name: "ce-xxx" })
+    else:
+        fail-fast (unknown reference!)
+```
+
+**Where to get canonical lists:**
+
+```
+# From agents/ directory (51 agents):
+ls plugins/compound-engineering/agents/*.agent.md | xargs -I{} yq '.name' {}
+# Produces: ce-session-historian, ce-pr-comment-resolver, ce-correctness-reviewer, etc.
+
+# From skills/ directory (35 skills):
+ls plugins/compound-engineering/skills/*/SKILL.md | xargs -I{} yq '.name' {}
+# Produces: ce-plan, ce-work, ce-debug, ce-sessions, etc.
+```
+
+**DO NOT infer agent vs skill from suffix patterns alone.** This is error-prone. Always use the canonical lists. The suffix heuristic fails when:
+
+- `ce-pr-comment-resolver` looks like an agent but is actually invoked as a skill
+- `ce-session-historian` has `-historian` suffix but is an agent
+- New components may have non-standard names
+
+**Validation checklist after conversion:**
+
+1. ❌ Do NOT grep for patterns - use the canonical lists to verify
+2. Use transformed output to query: any `@compound-engineering/` that maps to a skill (not agent) = bug
+3. Use transformed output to query: any `skill({ name: "ce-xxx" })` where xxx is an agent = bug
+4. **Grep for `@compound-engineeringskill`** - this garbled pattern indicates the exact bug we had
+5. Grep for `/ce-` - should find zero instances
+
+6. **Grep for `@compound-engineeringskill`** - this garbled pattern indicates the exact bug we had
+7. Grep for `/ce-` in SKILL.md only (not references/) - should find zero instances
+
+**Scope:** Only `.agent.md` and `SKILL.md` files are transformed. All files in `references/` subdirectories are **never touched** - they contain documentation, examples, and user-facing instructions that should remain unchanged.
 
 **What TO transform:** All skill/agent references anywhere in these files — including provenance, code blocks, and examples — because they represent actionable invocations the AI should follow.
 
