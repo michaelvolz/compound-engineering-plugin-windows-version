@@ -1,8 +1,7 @@
 ---
 name: ce-setup
 description: "Diagnose and configure compound-engineering environment. Checks CLI dependencies, plugin version, and repo-local config. Offers guided installation for missing tools. Use when troubleshooting missing tools, verifying setup, or before onboarding."
-disable-model-invocation: true
----
+disable-model-invocation: true---
 
 # Compound Engineering Setup
 
@@ -42,9 +41,9 @@ Display the script's output to the user.
 
 ### Step 3: Evaluate Results
 
-**Platform detection (pre-resolved):** !`[ -n "${CLAUDE_PLUGIN_ROOT}" ] && echo "CLAUDE_CODE" || ([ -d "$HOME/.config/opencode" ] || [ -d "$HOME/.local/share/opencode" ]) && echo "OPENCODE" || echo "OTHER"`
+**Plugin root (pre-resolved):** !`echo "!`echo $HOME`/.config/opencode"`
 
-If the line above resolved to `CLAUDE_CODE`, this is a Claude Code session and `skill({ name: "ce-update" })` is available. If it resolved to `OPENCODE`, omit any `skill({ name: "ce-update" })` references as that skill is Claude Code only. Otherwise, omit any `ce-update` references from output.
+If the line above resolved to an absolute path (starts with `/` and contains no `${`), this is a Claude Code session and `skill({ name: "ce-update" })` is available. Anything else — empty, the literal `!`echo $HOME`/.config/opencode` token, or an unresolved command string like `echo "!`echo $HOME`/.config/opencode"` left in place by a non-Claude harness that doesn't process `!` pre-resolution — means this is not Claude Code; omit any `skill({ name: "ce-update" })` references from output.
 
 After the diagnostic report, check whether:
 
@@ -66,7 +65,7 @@ If everything is installed, no repo-local cleanup is needed, and `.compound-engi
     Run skill({ name: "ce-setup" }) anytime to re-check.
 ```
 
-If this is a Claude Code session, append to the message: "Run skill({ name: "ce-update" }) to grab the latest plugin version."
+If this is a Claude Code session (the **Plugin root** above resolved to a non-empty path), append to the message: "Run skill({ name: "ce-update" }) to grab the latest plugin version."
 
 Stop here.
 
@@ -142,7 +141,7 @@ For each selected dependency, in order:
 
 2. **If approved:** Run the install command using a shell execution tool. After the command completes, verify installation:
    - For a CLI tool, run the dependency's check command (e.g., `command -v agent-browser`).
-   - For an agent skill, prefer `npx --yes skills list --global --json | jq -r '.[].name' | grep -qx <skill-name>` when `npx` is available; otherwise fall back to checking that `~/.claude/skills/<skill-name>` exists (file, directory, or symlink).
+   - For an agent skill, prefer `npx --yes skills list --global --json | jq -r '.[].name' | grep -qx <skill-name>` when `npx` is available; otherwise fall back to checking that `/.claude/skills/<skill-name>` exists (file, directory, or symlink).
 
 3. **If verification succeeds:** Report success.
 

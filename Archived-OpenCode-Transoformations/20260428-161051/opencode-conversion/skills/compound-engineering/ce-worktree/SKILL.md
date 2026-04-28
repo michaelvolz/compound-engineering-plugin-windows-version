@@ -1,7 +1,6 @@
 ---
 name: ce-worktree
-description: Create an isolated git worktree for parallel feature work or PR review. Use when starting work that should not disturb the current checkout, or when skill({ name: "ce-work" }) or skill({ name: "ce-code-review" }) offers a worktree option.
----
+description: Create an isolated git worktree for parallel feature work or PR review. Use when starting work that should not disturb the current checkout, or when `ce-work` or `ce-code-review` offers a worktree option.---
 
 # Worktree Creation
 

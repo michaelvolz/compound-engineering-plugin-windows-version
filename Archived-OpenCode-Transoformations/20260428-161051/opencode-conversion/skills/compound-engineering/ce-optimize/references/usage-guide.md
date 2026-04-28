@@ -1,3 +1,5 @@
+---
+---
 # `/ce-optimize` Usage Guide
 
 ## What This Skill Is For

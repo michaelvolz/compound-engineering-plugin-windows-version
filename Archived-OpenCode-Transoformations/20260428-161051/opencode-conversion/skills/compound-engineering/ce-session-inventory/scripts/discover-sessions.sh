@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Discover session files across Claude Code, OpenCode, Codex, and Cursor.
+# Discover session files across Claude Code, Codex, and Cursor.
 #
-# Usage: discover-sessions.sh <repo-name> <days> [--platform claude|opencode|codex|cursor]
+# Usage: discover-sessions.sh <repo-name> <days> [--platform claude|codex|cursor]
 #
 # Outputs one file path per line. Safe in both bash and zsh (all globs guarded).
 # Pass output to extract-metadata.py:
@@ -14,8 +14,8 @@
 
 set -euo pipefail
 
-REPO_NAME="${1:?Usage: discover-sessions.sh <repo-name> <days> [--platform claude|opencode|codex|cursor]}"
-DAYS="${2:?Usage: discover-sessions.sh <repo-name> <days> [--platform claude|opencode|codex|cursor]}"
+REPO_NAME="${1:?Usage: discover-sessions.sh <repo-name> <days> [--platform claude|codex|cursor]}"
+DAYS="${2:?Usage: discover-sessions.sh <repo-name> <days> [--platform claude|codex|cursor]}"
 PLATFORM="${4:-all}"
 
 # Parse optional --platform flag
@@ -64,30 +64,13 @@ discover_cursor() {
     done
 }
 
-# --- OpenCode ---
-discover_opencode() {
-    local db="$HOME/.local/share/opencode/opencode.db"
-    [ -f "$db" ] || return 0
-
-    # Query SQLite for sessions matching the repo name in their directory path
-    # Returns session IDs (one per line) - special format for extract-metadata.py
-    sqlite3 "$db" "
-        SELECT id FROM session 
-        WHERE directory LIKE '%${REPO_NAME}%' 
-        AND datetime(time_created/1000, 'unixepoch') >= datetime('now', '-${DAYS} days')
-        ORDER BY time_created DESC
-    " 2>/dev/null
-}
-
 # --- Dispatch ---
 case "$PLATFORM" in
-    claude)   discover_claude ;;
-    opencode) discover_opencode ;;
-    codex)    discover_codex ;;
-    cursor)   discover_cursor ;;
+    claude)  discover_claude ;;
+    codex)   discover_codex ;;
+    cursor)  discover_cursor ;;
     all)
         discover_claude
-        discover_opencode
         discover_codex
         discover_cursor
         ;;

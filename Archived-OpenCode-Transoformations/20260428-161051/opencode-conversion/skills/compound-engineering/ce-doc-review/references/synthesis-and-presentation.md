@@ -1,3 +1,5 @@
+---
+---
 # Phases 3-5: Synthesis, Presentation, and Next Action
 
 ## Phase 3: Synthesize Findings
@@ -89,7 +91,7 @@ Specific conflict patterns:
 
 ### 3.5b Deterministic Recommended-Action Tie-Break
 
-Every merged finding carries exactly one `recommended_action` field consumed by the walk-through (`references/walkthrough.md`) to mark the `(recommended)` option, by LFG (`references/bulk-preview.md`) to choose what to execute in bulk, and by the stem's yes/no framing. When a merged finding was flagged by multiple personas who implied different actions, synthesis picks the recommended action deterministically so identical review artifacts produce identical walk-through and LFG behavior across runs.
+Every merged finding carries exactly one `recommended_action` field consumed by the walk-through (`references/walkthrough.md`) to mark the `(recommended)` option, by the best-judgment path (`references/bulk-preview.md`) to choose what to execute in bulk, and by the stem's yes/no framing. When a merged finding was flagged by multiple personas who implied different actions, synthesis picks the recommended action deterministically so identical review artifacts produce identical walk-through and best-judgment behavior across runs.
 
 **Tie-break order (most conservative first):** `Skip > Defer > Apply`. The first action that at least one contributing persona implied wins, scanning in that order.
 
@@ -108,13 +110,13 @@ Every merged finding carries exactly one `recommended_action` field consumed by 
 If the contributing personas are all silent on action (e.g., a merged `manual` finding from personas that all flagged it as observation without recommendation), pick the default based on whether the merged finding carries an executable `suggested_fix`:
 
 - `suggested_fix` present → `recommended_action: Apply` as the pragmatic default.
-- `suggested_fix` absent → `recommended_action: Defer` (the walk-through and LFG cannot execute Apply without a fix; routing an actionless finding to Defer surfaces it in Open Questions where the user can decide what to do with it).
+- `suggested_fix` absent → `recommended_action: Defer` (the walk-through and best-judgment path cannot execute Apply without a fix; routing an actionless finding to Defer surfaces it in Open Questions where the user can decide what to do with it).
 
-This gate holds for every branch of the tie-break: if the winning action is `Apply` but the merged finding has no `suggested_fix` after 3.6 (Promote) and 3.7 (Route) have run, downgrade to `Defer`. The walk-through still lets the user pick any of the four options; this rule only governs the agent's default recommendation so LFG and bulk-preview never schedule a non-executable Apply.
+This gate holds for every branch of the tie-break: if the winning action is `Apply` but the merged finding has no `suggested_fix` after 3.6 (Promote) and 3.7 (Route) have run, downgrade to `Defer`. The walk-through still lets the user pick any of the four options; this rule only governs the agent's default recommendation so the best-judgment path and bulk-preview never schedule a non-executable Apply.
 
 **Conflict-context surface.** When the tie-break fires (contributing personas implied different actions), record a one-line conflict-context string on the merged finding. The walk-through renders this on the R15 conflict-context line (see `references/walkthrough.md`). Example: `Coherence recommends Apply; scope-guardian recommends Skip. Agent's recommendation: Skip.`
 
-**Downstream invariant.** The walk-through and bulk-preview never recompute the recommendation — they read `recommended_action` and render `(recommended)` on the matching option. LFG-the-rest and routing option B execute the `recommended_action` across the scoped finding set in bulk. This keeps LFG outcomes reproducible and auditable: the same review artifact always produces the same bulk plan.
+**Downstream invariant.** The walk-through and bulk-preview never recompute the recommendation — they read `recommended_action` and render `(recommended)` on the matching option. Best-judgment-the-rest and routing option B execute the `recommended_action` across the scoped finding set in bulk. This keeps best-judgment outcomes reproducible and auditable: the same review artifact always produces the same bulk plan.
 
 ### 3.5c Premise-Dependency Chain Linking
 
@@ -127,7 +129,7 @@ Run this step after 3.5b (recommended_action normalized) and before 3.6 (auto-pr
 - Severity is `P0` or `P1` (premise-level issues carry high priority by nature)
 - `autofix_class` is `manual` (the root itself requires judgment — a safe/gated root is acted on, not cascaded)
 - `why_it_matters` or `title` challenges a foundational premise, not a detail. Signal phrases (shape, not vocabulary): "premise unsupported", "justification missing", "do-nothing baseline not evaluated", "is X justified", "unsupported by evidence", "is the proposed solution the right approach"
-- The finding's `section` is framing-level (Problem Frame, Overview, Why, Motivation, Goals) OR the finding explicitly questions whether a named component should exist
+- The finding's `section` is framing-level (Problem Frame, Summary, Overview, Why, Motivation, Goals — `Summary` is the new ce-plan / ce-brainstorm template heading; `Overview` retained as legacy) OR the finding explicitly questions whether a named component should exist
 
 If multiple candidates match the criteria, elevate ALL of them. The criteria above (P0/P1, manual, framing-level section, premise-challenge signal phrases) are restrictive enough that this list will be short for any well-formed document; do not impose a further numerical cap. Picking only one root when two valid roots exist leaves the second root's natural dependents stranded as independent manual findings — the exact UX problem chains are meant to solve.
 
@@ -380,8 +382,8 @@ B. Exit without further action
 
 The `<next stage>` substitution uses the document type from Phase 1:
 
-- Requirements document → `ce-plan`
-- Plan document → `ce-work`
+- Requirements document → skill({ name: "ce-plan" })
+- Plan document → skill({ name: "ce-work" })
 
 **Label adaptation:** when no decisions are queued to apply, the primary option drops the `Apply decisions and` prefix — the label should match what the system is doing. `Apply decisions and proceed` when fixes are queued; `Proceed` when nothing is queued.
 
@@ -399,7 +401,7 @@ Return "Review complete" as the terminal signal for callers, regardless of which
 - Do not add new sections or requirements the user didn't discuss
 - Do not over-engineer or add complexity
 - Do not create separate review files or add metadata sections
-- Do not modify caller skills (ce-brainstorm, ce-plan, or external plugin skills that invoke ce-doc-review)
+- Do not modify caller skills (ce-brainstorm, ce-plan, or external plugin skills that invoke skill({ name: "ce-doc-review" }))
 
 ## Iteration Guidance
 

@@ -1,3 +1,5 @@
+---
+---
 # IDE detection for browser handoff
 
 Polish attempts to hand the running dev-server URL off to an IDE's embedded browser so the user can test without a context switch. Detection is best-effort — failure falls through to printing the URL in the interactive summary.
@@ -9,10 +11,9 @@ Probe environment variables in this order and stop at the first positive match. 
 | Order | Signal | IDE | Handoff method |
 |-------|--------|-----|----------------|
 | 1 | `CLAUDE_CODE` env var set (any value) | Claude Code desktop | Print `claude-code://browser?url=http://localhost:<port>` as a clickable hint; Claude Code's desktop app intercepts `claude-code://` URLs. |
-| 2 | `OPENCODE_CONFIG_DIR` or `~/.local/share/opencode` exists | OpenCode | Print the URL. OpenCode does not have embedded browser handoff — falls through to terminal. |
-| 3 | `CURSOR_TRACE_ID` env var set | Cursor | Emit `cursor://anysphere.cursor-retrieval/open?url=...` if Cursor's URL scheme is stable in the user's version; otherwise print the URL with a note to open it in Cursor's simple-browser view. |
-| 4 | `TERM_PROGRAM=vscode` AND no Cursor/Claude Code signal | Plain VS Code | Print the URL with a hint: `Open in VS Code: Ctrl+Shift+P → "Simple Browser: Show" → paste URL`. |
-| 5 | None of the above | Terminal / unknown IDE | Print the URL. No handoff attempt. |
+| 2 | `CURSOR_TRACE_ID` env var set | Cursor | Emit `cursor://anysphere.cursor-retrieval/open?url=...` if Cursor's URL scheme is stable in the user's version; otherwise print the URL with a note to open it in Cursor's simple-browser view. |
+| 3 | `TERM_PROGRAM=vscode` AND no Cursor/Claude Code signal | Plain VS Code | Print the URL with a hint: `Open in VS Code: Ctrl+Shift+P → "Simple Browser: Show" → paste URL`. |
+| 4 | None of the above | Terminal / unknown IDE | Print the URL. No handoff attempt. |
 
 ## Why env-var probe, not a fancier approach
 
@@ -21,9 +22,9 @@ Probe environment variables in this order and stop at the first positive match. 
 - They don't require any IDE API or socket connection
 - They encode "is this shell running inside a known IDE" without guessing
 
-## OpenCode and other platforms
+## Codex and other platforms
 
-OpenCode does not have embedded browser handoff — it falls through to terminal (print the URL). Codex and other platforms behave similarly. When a convention emerges for any platform, add a new row to the detection table above.
+Codex (Claude Agent SDK, Gemini CLI, etc.) do not yet expose an embedded-browser handoff. For these platforms, polish falls through to the terminal branch (print the URL). When a convention emerges, add a new row to the detection table above.
 
 ## Detection failure is never fatal
 

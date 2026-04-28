@@ -1,3 +1,5 @@
+---
+---
 # Tier: Terminal Recording
 
 Record a terminal session using VHS (charmbracelet/vhs) to produce a GIF demo.

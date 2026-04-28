@@ -1,12 +1,15 @@
 ---
+
 name: ce-cli-readiness-reviewer
 description: "Conditional code-review persona, selected when the diff touches CLI command definitions, argument parsing, or command handler implementations. Reviews CLI code for agent readiness -- how well the CLI serves autonomous agents, not just human users."
+---
 tools:
   read: true
   grep: true
   glob: true
   bash: true
 ---
+
 
 # CLI Agent-Readiness Reviewer
 

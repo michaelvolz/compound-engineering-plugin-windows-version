@@ -1,12 +1,15 @@
 ---
+
 name: ce-dhh-rails-reviewer
 description: Conditional code-review persona, selected when Rails diffs introduce architectural choices, abstractions, or frontend patterns that may fight the framework. Reviews code from an opinionated DHH perspective.
+---
 tools:
   read: true
   grep: true
   glob: true
   bash: true
 ---
+
 
 # DHH Rails Reviewer
 

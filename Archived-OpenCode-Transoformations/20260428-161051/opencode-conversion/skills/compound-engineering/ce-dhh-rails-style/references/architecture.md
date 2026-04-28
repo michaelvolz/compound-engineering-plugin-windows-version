@@ -1,3 +1,5 @@
+---
+---
 # Architecture - DHH Rails Style
 
 <routing>
@@ -116,7 +118,7 @@ end
 <authentication>
 ## Authentication
 
-Custom passwordless magic link auth (~150 lines total):
+Custom passwordless magic link auth (150 lines total):
 
 ```ruby
 # app/models/session.rb
@@ -142,7 +144,7 @@ end
 ```
 
 **Why not Devise:**
-- ~150 lines vs massive dependency
+- 150 lines vs massive dependency
 - No password storage liability
 - Simpler UX for users
 - Full control over flow

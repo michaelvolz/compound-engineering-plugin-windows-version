@@ -1,3 +1,5 @@
+---
+---
 # Vite dev-server recipe (auto-detect fallback)
 
 Loaded when `detect-project-type.sh` returns `vite` and there is no `.claude/launch.json` to consult.

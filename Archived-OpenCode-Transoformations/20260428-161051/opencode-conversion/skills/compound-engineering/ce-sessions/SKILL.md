@@ -1,7 +1,6 @@
 ---
 name: ce-sessions
-description: "Search and ask questions about your coding agent session history. Use when asking what you worked on, what was tried before, how a problem was investigated across sessions, what happened recently, or any question about past agent sessions. Also use when the user references prior sessions, previous attempts, or past investigations — even without saying 'sessions' explicitly."
----
+description: "Search and ask questions about your coding agent session history. Use when asking what you worked on, what was tried before, how a problem was investigated across sessions, what happened recently, or any question about past agent sessions. Also use when the user references prior sessions, previous attempts, or past investigations — even without saying 'sessions' explicitly."---
 
 # skill({ name: "ce-sessions" })
 
@@ -16,7 +15,7 @@ skill({ name: "ce-sessions" })
 
 ## Pre-resolved context
 
-**Repo name (pre-resolved):** !`common=$(git rev-parse --git-common-dir 2>/dev/null); if [ "$common" = ".git" ]; then basename "$(git rev-parse --show-toplevel 2>/dev/null)"; else basename "$(dirname "$common")"; fi`
+**Repo name (pre-resolved):** !`git rev-parse --path-format=absolute --git-common-dir 2>/dev/null | sed -E 's|/\.git/?$||; s|.*/||'`
 
 **Git branch (pre-resolved):** !`git rev-parse --abbrev-ref HEAD 2>/dev/null`
 

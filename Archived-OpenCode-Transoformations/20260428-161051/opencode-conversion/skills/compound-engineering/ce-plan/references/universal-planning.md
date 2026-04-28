@@ -1,3 +1,5 @@
+---
+---
 # Universal Planning Workflow
 
 This file is loaded when ce-plan detects a non-software task (Phase 0.1b). It replaces the software-specific phases (0.2 through 5.1) with a domain-agnostic planning workflow.
@@ -8,9 +10,9 @@ The detection stub in SKILL.md routes here for anything that isn't clearly softw
 
 - **Is this actually a software task?** The key distinction is task-type, not topic-domain. A study guide about Rust is non-software (producing educational content). A Rust library refactor is software (modifying code). If this is actually software, return to Phase 0.2 in the main SKILL.md.
 - **Is this a quick-help request, not a planning task?** Error messages, factual questions, and single-step tasks don't need a plan. Respond directly and exit. Examples: "zsh: command not found: brew", "what's the capital of France."
-- **Pipeline mode?** If invoked from LFG, SLFG, or any `disable-model-invocation` context: output "This is a non-software task. The LFG/SLFG pipeline requires ce-work, which only supports software tasks. Use `/ce-plan` directly for non-software planning." and stop.
+- **Pipeline mode?** If invoked from LFG or any `disable-model-invocation` context: output "This is a non-software task. The LFG pipeline requires ce-work, which only supports software tasks. Use `/ce-plan` directly for non-software planning." and stop.
 
-Once past these checks, commit to producing a plan. Do not exit because the task looks like a "lookup" or "research question" — the user invoked `ce-plan` because they want a structured output.
+Once past these checks, commit to producing a plan. Do not exit because the task looks like a "lookup" or "research question" — the user invoked skill({ name: "ce-plan" }) because they want a structured output.
 
 ---
 
@@ -107,7 +109,7 @@ After structuring the plan, ask the user how they want to receive it using the p
    - Use filename convention: `YYYY-MM-DD-<descriptive-name>-plan.md`
    - Start the document with a `# Title` heading, followed by `Created: YYYY-MM-DD` on the next line. No YAML frontmatter.
 
-2. **Open in Proof (web app) — review and comment to iterate with the agent** — Open the doc in Every's Proof editor, iterate with the agent via comments, or copy a link to share with others. Load the `ce-proof` skill to create and open the document.
+2. **Open in Proof (web app) — review and comment to iterate with the agent** — Open the doc in Every's Proof editor, iterate with the agent via comments, or copy a link to share with others. Load the skill({ name: "ce-proof" }) skill to create and open the document.
 
 3. **Save to disk AND open in Proof** — Do both: write the markdown file to disk and open the doc in Proof for review.
 

@@ -1,3 +1,5 @@
+---
+---
 # Visual Communication in Requirements Documents
 
 Visual aids are conditional on content patterns, not on depth classification — a Lightweight brainstorm about a complex workflow may warrant a diagram; a Deep brainstorm about a straightforward feature may not.
@@ -14,7 +16,7 @@ Visual aids are conditional on content patterns, not on depth classification —
 **When to skip:**
 - Prose already communicates the concept clearly
 - The diagram would just restate the requirements in visual form without adding comprehension value
-- The visual describes implementation architecture, data schemas, state machines, or code structure (that belongs in `ce-plan`)
+- The visual describes implementation architecture, data schemas, state machines, or code structure (that belongs in skill({ name: "ce-plan" }))
 - The brainstorm is simple and linear with no multi-step flows, mode comparisons, or multi-participant interactions
 
 **Format selection:**

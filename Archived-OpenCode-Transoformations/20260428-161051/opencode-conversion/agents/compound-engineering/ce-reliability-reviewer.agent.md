@@ -1,6 +1,8 @@
 ---
+
 name: ce-reliability-reviewer
 description: Conditional code-review persona, selected when the diff touches error handling, retries, circuit breakers, timeouts, health checks, background jobs, or async handlers. Reviews code for production reliability and failure modes.
+---
 tools:
   read: true
   grep: true
@@ -8,6 +10,7 @@ tools:
   bash: true
 
 ---
+
 
 # Reliability Reviewer
 

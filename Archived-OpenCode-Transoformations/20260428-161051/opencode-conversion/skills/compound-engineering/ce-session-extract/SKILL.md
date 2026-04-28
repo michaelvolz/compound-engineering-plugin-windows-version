@@ -2,12 +2,11 @@
 name: ce-session-extract
 description: "Extract conversation skeleton or error signals from a single session file at a given path. Invoked by session-research agents after they have selected which sessions to deep-dive — not intended for direct user queries."
 user-invocable: false
-context: fork
----
+context: fork---
 
 # Session extract
 
-Agent-facing primitive. Extract filtered content from a single Claude Code, OpenCode, Codex, or Cursor session file — either a conversation skeleton or error signals.
+Agent-facing primitive. Extract filtered content from a single Claude Code, Codex, or Cursor session file — either a conversation skeleton or error signals.
 
 This skill exists so that agents do not read multi-megabyte session files into context. The scripts under `scripts/` own the JSONL shape knowledge and emit a narrative-readable digest.
 
@@ -15,28 +14,23 @@ This skill exists so that agents do not read multi-megabyte session files into c
 
 Space-separated positional args:
 
-1. `<file-or-session-id>` — For Claude/Codex/Cursor: absolute path to session JSONL file. For OpenCode: session ID (ses_xxx format).
+1. `<file>` — absolute path to a session JSONL file (typically a `file` value returned by skill({ name: "ce-session-inventory" })).
 2. `<mode>` — `skeleton` or `errors`.
 3. `<limit>` *(optional)* — `head:N` or `tail:N` to cap output at N lines (e.g., `head:200`). Omit to return full extraction.
 
 ## Execution
 
-**For Claude/Codex/Cursor (JSONL files):**
+**Skeleton mode** — narrative of user messages, assistant text, and collapsed tool-call summaries:
 
 ```bash
 cat <file> | python3 scripts/extract-skeleton.py
 ```
 
-**For OpenCode (session ID):**
+**Errors mode** — just error signals:
 
 ```bash
-python3 scripts/extract-skeleton.py <session-id>
-python3 scripts/extract-errors.py <session-id>
+cat <file> | python3 scripts/extract-errors.py
 ```
-
-**Skeleton mode** — narrative of user messages, assistant text, and collapsed tool-call summaries:
-
-**Errors mode** — just error signals:
 
 If `<limit>` is `head:N`, pipe through `head -n N`. If `tail:N`, pipe through `tail -n N`. Apply the limit after the Python script, never before — the `_meta` line is emitted last and a head cap may drop it; that is acceptable when the caller asks for a head cap.
 
@@ -59,7 +53,6 @@ Ends with a `_meta` line: `{"_meta": true, "lines": N, "parse_errors": N, "user"
 One line per error, separated by `---`:
 
 - Claude Code: tool results with `is_error: true`
-- OpenCode: tool results with `is_error: true` (same structure as Claude Code)
 - Codex: `exec_command_end` events with non-zero exit or non-empty stderr
 - Cursor: always empty — Cursor agent transcripts do not log tool results
 

@@ -1,3 +1,5 @@
+---
+---
 <overview>
 Self-modification is the advanced tier of agent native engineering: agents that can evolve their own code, prompts, and behavior. Not required for every app, but a big part of the future.
 

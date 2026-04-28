@@ -1,3 +1,5 @@
+---
+---
 # Codex Delegation Workflow
 
 When `delegation_active` is true, code implementation is delegated to the Codex CLI (`codex exec`) instead of being implemented directly. The orchestrating Claude Code agent retains control of planning, review, git operations, and orchestration.
@@ -55,12 +57,11 @@ If `inside_sandbox` is true, delegation would recurse or fail.
 
 **2. Availability Check**
 
-**Codex availability (pre-resolved):**
-!`command -v codex >/dev/null 2>&1 && echo "CODEX_AVAILABLE" || echo "CODEX_NOT_FOUND"`
+**Codex CLI path (pre-resolved):**
+!`command -v codex 2>/dev/null`
 
-If the line above shows `CODEX_AVAILABLE`, proceed to the next check.
-If it shows `CODEX_NOT_FOUND`, the Codex CLI is not installed. Emit "Codex CLI not found (install via `npm install -g @openai/codex` or `brew install codex`) -- using standard mode." and set `delegation_active` to false.
-If it shows an unresolved command string, run `command -v codex` using a shell tool. If the command prints a path, proceed. If it fails or prints nothing, emit the same message and set `delegation_active` to false.
+If the line above shows an absolute path (starts with `/`, e.g., `/opt/homebrew/bin/codex`), the Codex CLI is available — proceed to the next check.
+Otherwise — empty, an unresolved command string like `command -v codex 2>/dev/null` left in place by a non-Claude harness that doesn't process `!` pre-resolution, or any other non-path value — run `command -v codex` via the shell/Bash tool to verify at runtime. If that prints an absolute path, the Codex CLI is available; proceed. If it fails or prints nothing, emit "Codex CLI not found (install via `npm install -g @openai/codex` or `brew install codex`) -- using standard mode." and set `delegation_active` to false.
 
 **3. Consent Flow**
 
@@ -231,19 +232,24 @@ else
 fi
 
 codex exec \
-  -m "<delegate_model>" \
-  -c 'model_reasoning_effort="<delegate_effort>"' \
   $SANDBOX_FLAG \
   --output-schema "<scratch-dir>/result-schema.json" \
   -o "<scratch-dir>/result-batch-<batch-num>.json" \
   - < "<scratch-dir>/prompt-batch-<batch-num>.md"
 ```
 
+**Conditional flags** — only include each line when the corresponding skill-state value is set:
+
+- If `delegate_model` is set, insert `  -m "<delegate_model>" \` as a line before `$SANDBOX_FLAG`.
+- If `delegate_effort` is set, insert `  -c 'model_reasoning_effort="<delegate_effort>"' \` as a line before `$SANDBOX_FLAG`.
+
+When either value is unset, omit its line entirely — Codex resolves the default from the user's `/.codex/config.toml` (and ultimately the CLI's own built-in default). Do not substitute a placeholder string for unset values.
+
 Critical: `run_in_background: true` must be set as a **Bash tool parameter**, not as a shell `&` suffix. The tool parameter is what removes the timeout ceiling. A shell `&` inside a foreground Bash call still hits the 2-minute default timeout.
 
-Quoting is critical for the `-c` flag: use single quotes around the entire key=value and double quotes around the TOML string value inside. Example: `-c 'model_reasoning_effort="high"'`.
+Quoting is critical for the `-c` flag when present: use single quotes around the entire key=value and double quotes around the TOML string value inside. Example: `-c 'model_reasoning_effort="high"'`.
 
-Do not improvise CLI flags or modify this invocation template.
+Do not improvise CLI flags or modify this invocation template beyond the documented conditional insertions.
 
 **Step B — Poll (foreground, separate Bash calls):**
 
@@ -267,7 +273,7 @@ If the output is "Waiting for Codex...", issue the same polling command again as
 - **Result file appears** (output is "DONE") -- proceed to result classification normally.
 - **Background process exits with non-zero code** -- classify as CLI failure (row 1). Rollback and fall back to standard mode.
 - **Background process exits with zero code but result file is absent** -- classify as task failure (row 2: exit 0, result JSON missing). Rollback and increment `consecutive_failures`.
-- **5 polling rounds** elapse (~5 minutes) without the result file appearing and without a background process notification -- treat as a hung process. Classify as CLI failure (row 1). Rollback and fall back to standard mode.
+- **5 polling rounds** elapse (5 minutes) without the result file appearing and without a background process notification -- treat as a hung process. Classify as CLI failure (row 1). Rollback and fall back to standard mode.
 
 **Result classification:** Codex is responsible for running verification internally and fixing failures before reporting -- the orchestrator does not re-run verification independently.
 

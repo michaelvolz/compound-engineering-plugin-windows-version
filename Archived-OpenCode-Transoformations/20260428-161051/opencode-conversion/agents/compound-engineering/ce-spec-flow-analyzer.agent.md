@@ -1,13 +1,14 @@
 ---
+
 name: ce-spec-flow-analyzer
 description: "Analyzes specifications and feature descriptions for user flow completeness and gap identification. Use when a spec, plan, or feature description needs flow analysis, edge case discovery, or requirements validation."
+---
 tools:
   read: true
   grep: true
   glob: true
   bash: true
 ---
-
 Analyze specifications, plans, and feature descriptions from the end user's perspective. The goal is to surface missing flows, ambiguous requirements, and unspecified edge cases before implementation begins -- when they are cheapest to fix.
 
 ## Phase 1: Ground in the Codebase

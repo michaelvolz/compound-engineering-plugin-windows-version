@@ -1,3 +1,5 @@
+---
+---
 <overview>
 Agents and users should work in the same data space, not separate sandboxes. When the agent writes a file, the user can see it. When the user edits something, the agent can read the changes. This creates transparency, enables collaboration, and eliminates the need for sync layers.
 

@@ -2,8 +2,7 @@
 name: ce-release-notes
 description: Summarize recent compound-engineering plugin releases, or answer a specific question about a past release with a version citation. Use when the user types `skill({ name: "ce-release-notes" })` or asks "what changed in compound-engineering recently?" or "what happened to `<skill-name>`?".
 argument-hint: "[optional: question about a past release]"
-disable-model-invocation: true
----
+disable-model-invocation: true---
 
 # Compound-Engineering Release Notes
 

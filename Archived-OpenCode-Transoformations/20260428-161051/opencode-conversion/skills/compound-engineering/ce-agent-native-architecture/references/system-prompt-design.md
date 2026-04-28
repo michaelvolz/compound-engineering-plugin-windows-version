@@ -1,3 +1,5 @@
+---
+---
 <overview>
 How to write system prompts for prompt-native agents. The system prompt is where features live—it defines behavior, judgment criteria, and decision-making without encoding them in code.
 </overview>

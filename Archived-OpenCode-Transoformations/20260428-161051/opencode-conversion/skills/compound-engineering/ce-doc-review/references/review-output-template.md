@@ -1,3 +1,5 @@
+---
+---
 # Document Review Output Template
 
 Use this **exact format** when presenting synthesized review findings in Interactive mode. Findings are grouped by severity, not by reviewer.

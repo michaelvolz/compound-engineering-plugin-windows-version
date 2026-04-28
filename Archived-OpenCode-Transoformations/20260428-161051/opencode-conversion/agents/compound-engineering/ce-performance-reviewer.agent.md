@@ -1,6 +1,8 @@
 ---
+
 name: ce-performance-reviewer
 description: Conditional code-review persona, selected when the diff touches database queries, loop-heavy data transforms, caching layers, or I/O-intensive paths. Reviews code for runtime performance and scalability issues.
+---
 tools:
   read: true
   grep: true
@@ -8,6 +10,7 @@ tools:
   bash: true
 
 ---
+
 
 # Performance Reviewer
 

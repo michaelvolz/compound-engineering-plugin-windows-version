@@ -1,3 +1,5 @@
+---
+---
 # Visual Communication in Plan Documents
 
 Section 3.4 covers diagrams about the *solution being planned* (pseudo-code, mermaid sequences, state diagrams). The existing Section 4.3 mermaid rule encourages those solution-design diagrams within Technical Design and per-unit fields. This guidance covers a different concern: visual aids that help readers *navigate and comprehend the plan document itself* -- dependency graphs, interaction diagrams, and comparison tables that make plan structure scannable.
@@ -10,7 +12,7 @@ Visual aids are conditional on content patterns, not on plan depth classificatio
 |---|---|---|
 | 4+ implementation units with non-linear dependencies (parallelism, diamonds, fan-in/fan-out) | Mermaid dependency graph | Before or after the Implementation Units heading |
 | System-Wide Impact naming 3+ interacting surfaces or cross-layer effects | Mermaid interaction or component diagram | Within the System-Wide Impact section |
-| Problem/Overview involving 3+ behavioral modes, states, or variants | Markdown comparison table | Within Overview or Problem Frame |
+| Summary or Problem Frame involving 3+ behavioral modes, states, or variants | Markdown comparison table | Within Summary or Problem Frame (legacy plans may still use `Overview`) |
 | Key Technical Decisions with 3+ interacting decisions, or Alternative Approaches with 3+ alternatives | Markdown comparison table | Within the relevant section |
 
 **When to skip:**

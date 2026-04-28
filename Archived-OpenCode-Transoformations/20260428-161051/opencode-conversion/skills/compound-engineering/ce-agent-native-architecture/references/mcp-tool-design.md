@@ -1,3 +1,5 @@
+---
+---
 <overview>
 How to design MCP tools following prompt-native principles. Tools should be primitives that enable capability, not workflows that encode decisions.
 

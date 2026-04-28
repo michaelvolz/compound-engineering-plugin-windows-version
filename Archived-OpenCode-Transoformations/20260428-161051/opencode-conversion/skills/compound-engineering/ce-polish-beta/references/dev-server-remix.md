@@ -1,3 +1,5 @@
+---
+---
 # Remix dev-server recipe (auto-detect fallback)
 
 Loaded when `detect-project-type.sh` returns `remix` and there is no `.claude/launch.json` to consult.

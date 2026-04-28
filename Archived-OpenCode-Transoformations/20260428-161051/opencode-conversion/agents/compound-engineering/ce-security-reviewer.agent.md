@@ -1,6 +1,8 @@
 ---
+
 name: ce-security-reviewer
 description: Conditional code-review persona, selected when the diff touches auth middleware, public endpoints, user input handling, or permission checks. Reviews code for exploitable vulnerabilities.
+---
 tools:
   read: true
   grep: true
@@ -8,6 +10,7 @@ tools:
   bash: true
 
 ---
+
 
 # Security Reviewer
 

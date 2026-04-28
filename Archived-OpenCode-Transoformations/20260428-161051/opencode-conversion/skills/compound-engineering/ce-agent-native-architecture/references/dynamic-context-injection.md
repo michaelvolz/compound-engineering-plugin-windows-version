@@ -1,3 +1,5 @@
+---
+---
 <overview>
 How to inject dynamic runtime context into agent system prompts. The agent needs to know what exists in the app to know what it can work with. Static prompts aren't enough—the agent needs to see the same context the user sees.
 

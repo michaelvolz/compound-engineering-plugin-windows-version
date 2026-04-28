@@ -1,6 +1,8 @@
+---
+---
 # HITL Review Mode
 
-Human-in-the-loop iteration loop for a markdown document shared via Proof. Invoked either by an upstream skill (`ce-brainstorm`, `ce-ideate`, `ce-plan`) handing off a draft it produced, or directly by the user asking to iterate on an existing markdown file they already have on disk ("share this to proof and iterate", "HITL this doc with me"). Mechanics are identical in both cases: upload the local doc, let the user annotate in Proof's web UI, ingest feedback as in-thread replies and tracked edits, and sync the final doc back to disk.
+Human-in-the-loop iteration loop for a markdown document shared via Proof. Invoked either by an upstream skill (skill({ name: "ce-brainstorm" }), skill({ name: "ce-ideate" }), skill({ name: "ce-plan" })) handing off a draft it produced, or directly by the user asking to iterate on an existing markdown file they already have on disk ("share this to proof and iterate", "HITL this doc with me"). Mechanics are identical in both cases: upload the local doc, let the user annotate in Proof's web UI, ingest feedback as in-thread replies and tracked edits, and sync the final doc back to disk.
 
 This mode assumes a local markdown file exists. There is no "from scratch" entry — if the user wants a fresh doc, create one with the normal proof create workflow first, then invoke HITL.
 
@@ -101,7 +103,7 @@ Real feedback blends types — "this is wrong, rename to Y" is both objection an
 
 **Invariant:** every attention-needing mark ends the pass with an agent reply in its thread. Unreplied = "still to do" — the next pass re-classifies it. This is what makes the loop idempotent without a sidecar: mark state *is* the state. Even when the agent disagrees or can't decide, reply (with reasoning or a question) rather than silently skip.
 
-**Parallelize independent thread ops.** `comment.reply` and `comment.resolve` across different marks don't conflict — they touch different thread state and a stale `baseToken` on one doesn't poison another (retry-on-`STALE_BASE` is cheap, per-mark, and local). When there are more than ~3 attention-needing marks that classify as plain replies or resolves, dispatch them in parallel — either via multiple tool calls in one turn or via sub-agents (`Agent`/`Task` in Claude Code, `spawn_agent` in Codex, `subagent` in Pi). Keep block-mutating edits (`suggestion.add`, `/edit/v2`) sequential or batch them through one `/edit/v2` call — concurrent block edits can stale one another's `baseToken` and force retries, and they interact in ways that are easier to reason about as an ordered sequence.
+**Parallelize independent thread ops.** `comment.reply` and `comment.resolve` across different marks don't conflict — they touch different thread state and a stale `baseToken` on one doesn't poison another (retry-on-`STALE_BASE` is cheap, per-mark, and local). When there are more than 3 attention-needing marks that classify as plain replies or resolves, dispatch them in parallel — either via multiple tool calls in one turn or via sub-agents (`Agent`/`Task` in Claude Code, `spawn_agent` in Codex, `subagent` in Pi). Keep block-mutating edits (`suggestion.add`, `/edit/v2`) sequential or batch them through one `/edit/v2` call — concurrent block edits can stale one another's `baseToken` and force retries, and they interact in ways that are easier to reason about as an ordered sequence.
 
 ### 2.4 Apply edits
 
@@ -145,7 +147,7 @@ Per-op body shape (singular `block` for `replace_block`; plural `blocks:[{markdo
 
 Block `ref` values drift across revisions — re-fetch `/snapshot` for fresh refs before each `/edit/v2` call if any writes have landed since the last snapshot.
 
-**Bulk mechanical sweep — prefer one `/edit/v2` call over N `suggestion.add` calls.** When a uniform change hits more than ~5 blocks (emdash sweep, terminology rename across a doc, heading-style normalization), batch it as a single `/edit/v2` with many `operations`. One round-trip, one atomic commit, one audit entry — versus N separate ops-endpoint calls, N baseToken reads (without the caching below), and N tracked marks for what is one logical change. Use `suggestion.add` + `accepted` when edits are distinct and anchored (each deserves its own reject-to-revert trail); use `/edit/v2` batch when they're variations of the same mechanical rule.
+**Bulk mechanical sweep — prefer one `/edit/v2` call over N `suggestion.add` calls.** When a uniform change hits more than 5 blocks (emdash sweep, terminology rename across a doc, heading-style normalization), batch it as a single `/edit/v2` with many `operations`. One round-trip, one atomic commit, one audit entry — versus N separate ops-endpoint calls, N baseToken reads (without the caching below), and N tracked marks for what is one logical change. Use `suggestion.add` + `accepted` when edits are distinct and anchored (each deserves its own reject-to-revert trail); use `/edit/v2` batch when they're variations of the same mechanical rule.
 
 **Use pending `suggestion.add` (no status)** when the change is judgment-sensitive enough that the agent wants explicit user approval before commit — rare in HITL, since the point of auto-applied edits is to reduce round-trips. Most judgment-sensitive cases are better handled by leaving the thread open with a clarifying question.
 

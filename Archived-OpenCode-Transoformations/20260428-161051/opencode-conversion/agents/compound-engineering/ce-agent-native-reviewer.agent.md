@@ -1,12 +1,15 @@
 ---
+
 name: ce-agent-native-reviewer
 description: "Reviews code to ensure agent-native parity -- any action a user can take, an agent can also take. Use after adding UI features, agent tools, or system prompts."
+---
 tools:
   read: true
   grep: true
   glob: true
   bash: true
 ---
+
 
 # Agent-Native Architecture Reviewer
 

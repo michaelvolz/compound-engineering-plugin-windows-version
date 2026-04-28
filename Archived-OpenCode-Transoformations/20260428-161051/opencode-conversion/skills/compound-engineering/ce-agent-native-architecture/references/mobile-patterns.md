@@ -1,3 +1,5 @@
+---
+---
 <overview>
 Mobile is a first-class platform for agent-native apps. It has unique constraints and opportunities. This guide covers why mobile matters, iOS storage architecture, checkpoint/resume patterns, and cost-aware design.
 </overview>
@@ -462,9 +464,9 @@ Use the cheapest model that achieves the outcome:
 
 ```swift
 enum ModelTier {
-    case fast      // claude-3-haiku: ~$0.25/1M tokens
-    case balanced  // claude-3-sonnet: ~$3/1M tokens
-    case powerful  // claude-3-opus: ~$15/1M tokens
+    case fast      // claude-3-haiku: $0.25/1M tokens
+    case balanced  // claude-3-sonnet: $3/1M tokens
+    case powerful  // claude-3-opus: $15/1M tokens
 
     var modelId: String {
         switch self {

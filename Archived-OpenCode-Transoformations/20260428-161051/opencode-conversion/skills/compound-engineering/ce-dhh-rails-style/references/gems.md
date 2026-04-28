@@ -1,3 +1,5 @@
+---
+---
 # Gems - DHH Rails Style
 
 <what_they_use>
@@ -37,7 +39,7 @@
 
 **Authentication:**
 ```
-devise → Custom ~150-line auth
+devise → Custom 150-line auth
 ```
 Why: Full control, no password liability with magic links, simpler.
 

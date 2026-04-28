@@ -1,6 +1,8 @@
 ---
+
 name: ce-testing-reviewer
 description: Always-on code-review persona. Reviews code for test coverage gaps, weak assertions, brittle implementation-coupled tests, and missing edge case coverage.
+---
 tools:
   read: true
   grep: true
@@ -8,6 +10,7 @@ tools:
   bash: true
 
 ---
+
 
 # Testing Reviewer
 

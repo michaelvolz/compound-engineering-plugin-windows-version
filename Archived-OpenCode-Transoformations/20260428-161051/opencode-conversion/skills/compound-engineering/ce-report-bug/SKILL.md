@@ -2,8 +2,7 @@
 name: ce-report-bug
 description: Report a bug in the compound-engineering plugin
 argument-hint: "[optional: brief description of the bug]"
-disable-model-invocation: true
----
+disable-model-invocation: true---
 
 # Report a Compound Engineering Plugin Bug
 
@@ -47,7 +46,7 @@ uname -a
 ```
 
 **Plugin version:** Read the plugin manifest or installed plugin metadata. Common locations:
-- Claude Code: `~/.claude/plugins/installed_plugins.json`
+- Claude Code: `/.claude/plugins/installed_plugins.json`
 - Codex: `.codex/plugins/` or project config
 - Other platforms: check the platform's plugin registry
 

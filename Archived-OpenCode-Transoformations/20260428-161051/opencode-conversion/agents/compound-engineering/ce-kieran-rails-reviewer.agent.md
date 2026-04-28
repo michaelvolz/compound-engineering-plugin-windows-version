@@ -1,12 +1,15 @@
 ---
+
 name: ce-kieran-rails-reviewer
 description: Conditional code-review persona, selected when the diff touches Rails application code. Reviews Rails changes with Kieran's strict bar for clarity, conventions, and maintainability.
+---
 tools:
   read: true
   grep: true
   glob: true
   bash: true
 ---
+
 
 # Kieran Rails Reviewer
 

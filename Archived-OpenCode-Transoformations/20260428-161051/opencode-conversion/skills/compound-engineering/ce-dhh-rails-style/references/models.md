@@ -1,3 +1,5 @@
+---
+---
 # Models - DHH Rails Style
 
 <model_concerns>
@@ -325,7 +327,7 @@ user.notifications_enabled = true
 <concern_guidelines>
 ## Concern Guidelines
 
-- **50-150 lines** per concern (most are ~100)
+- **50-150 lines** per concern (most are 100)
 - **Cohesive** - related functionality only
 - **Named for capabilities** - `Closeable`, `Watchable`, not `CardHelpers`
 - **Self-contained** - associations, scopes, methods together

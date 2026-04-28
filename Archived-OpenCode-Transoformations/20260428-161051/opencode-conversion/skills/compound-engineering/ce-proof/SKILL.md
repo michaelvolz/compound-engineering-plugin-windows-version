@@ -5,8 +5,7 @@ allowed-tools:
   - Bash
   - Read
   - Write
-  - WebFetch
----
+  - WebFetch---
 
 # Proof - Collaborative Markdown Editor
 

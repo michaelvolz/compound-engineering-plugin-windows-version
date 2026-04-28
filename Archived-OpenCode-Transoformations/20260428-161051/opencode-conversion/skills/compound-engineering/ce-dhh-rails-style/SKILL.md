@@ -1,7 +1,6 @@
 ---
 name: ce-dhh-rails-style
-description: This skill should be used when writing Ruby and Rails code in DHH's distinctive 37signals style. It applies when writing Ruby code, Rails applications, creating models, controllers, or any Ruby file. Triggers on Ruby/Rails code generation, refactoring requests, code review, or when the user mentions DHH, 37signals, Basecamp, HEY, or Campfire style. Embodies REST purity, fat models, thin controllers, Current attributes, Hotwire patterns, and the "clarity over cleverness" philosophy.
----
+description: This skill should be used when writing Ruby and Rails code in DHH's distinctive 37signals style. It applies when writing Ruby code, Rails applications, creating models, controllers, or any Ruby file. Triggers on Ruby/Rails code generation, refactoring requests, code review, or when the user mentions DHH, 37signals, Basecamp, HEY, or Campfire style. Embodies REST purity, fat models, thin controllers, Current attributes, Hotwire patterns, and the "clarity over cleverness" philosophy.---
 
 <objective>
 Apply 37signals/DHH Rails conventions to Ruby and Rails code. This skill provides comprehensive domain expertise extracted from analyzing production 37signals codebases (Fizzy/Campfire) and DHH's code review patterns.
@@ -21,7 +20,7 @@ Apply 37signals/DHH Rails conventions to Ruby and Rails code. This skill provide
 - Build solutions before reaching for gems
 
 **What they deliberately avoid:**
-- devise (custom ~150-line auth instead)
+- devise (custom 150-line auth instead)
 - pundit/cancancan (simple role checks in models)
 - sidekiq (Solid Queue uses database)
 - redis (database for everything)

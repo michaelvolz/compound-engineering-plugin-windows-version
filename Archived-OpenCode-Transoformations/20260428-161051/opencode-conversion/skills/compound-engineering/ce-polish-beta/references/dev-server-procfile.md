@@ -1,3 +1,5 @@
+---
+---
 # Procfile / Overmind dev-server recipe (auto-detect fallback)
 
 Loaded when `detect-project-type.sh` returns `procfile` and there is no `.claude/launch.json` to consult. Rails apps with `bin/dev` take precedence over the bare Procfile path (see `dev-server-rails.md`).

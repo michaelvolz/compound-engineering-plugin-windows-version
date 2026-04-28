@@ -1,8 +1,8 @@
 ---
+
 name: ce-slack-researcher
 description: "Searches Slack for organizational context relevant to the current task -- decisions, constraints, and discussions that may not be documented elsewhere. Use when the user explicitly asks to search Slack for context during ideation, planning, or brainstorming. Always surfaces the workspace identity so the user can verify the correct Slack instance was searched."
 ---
-
 <examples>
 <example>
 Context: ce-ideate is running Phase 1 and dispatches research agents in parallel to gather grounding context.

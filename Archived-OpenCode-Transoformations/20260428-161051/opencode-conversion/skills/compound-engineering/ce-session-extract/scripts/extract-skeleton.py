@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Extract the conversation skeleton from a Claude Code, OpenCode, Codex, or Cursor session file.
+"""Extract the conversation skeleton from a Claude Code, Codex, or Cursor JSONL session file.
 
 Usage: cat <session.jsonl> | python3 extract-skeleton.py
-       cat <session.json> | python3 extract-skeleton.py  (OpenCode)
 
-Auto-detects platform (Claude Code, OpenCode, Codex, or Cursor) from the file structure.
+Auto-detects platform (Claude Code, Codex, or Cursor) from the JSONL structure.
 Extracts:
   - User messages (text only, no tool results)
   - Assistant text (no thinking/reasoning blocks)
@@ -17,7 +16,6 @@ Outputs a _meta line at the end with processing stats.
 """
 import sys
 import json
-import os
 import re
 
 stats = {"lines": 0, "parse_errors": 0, "user": 0, "assistant": 0, "tool": 0}
@@ -281,195 +279,39 @@ def handle_cursor(obj):
                 pending_tools.append({"ts": "", "name": name, "target": target})
 
 
-def handle_opencode(obj):
-    """OpenCode messages: actual format from SQLite.
-    
-    OpenCode message format from database:
-    {
-        "role": "user"|"assistant",
-        "time": {"created": 1234567890, "completed": 1234567890},
-        "agent": "build",
-        "model": {"providerID": "...", "modelID": "..."},
-        "summary": {"diffs": [...]},  (user messages with file changes)
-        "path": {"cwd": "...", "root": "..."},  (assistant messages)
-        "tokens": {...},
-        "cost": 0
-    }
-    """
-    import datetime
-    
-    role = obj.get("role")
-    time_info = obj.get("time", {})
-    ts = ""
-    if time_info and "created" in time_info:
-        try:
-            # OpenCode uses Unix timestamp in milliseconds
-            ts = datetime.datetime.fromtimestamp(
-                time_info["created"] / 1000.0
-            ).strftime("%Y-%m-%d %H:%M:%S")[:19]
-        except (ValueError, OSError):
-            pass
-    
-    agent = obj.get("agent", "")
-    
-    if role == "user":
-        # User messages: extract info about what the user did
-        summary = obj.get("summary", {})
-        diffs = summary.get("diffs", [])
-        
-        if diffs:
-            # User made file changes - show summaries
-            for diff in diffs[:3]:
-                file_path = diff.get("file", "")
-                status = diff.get("status", "modified")
-                additions = diff.get("additions", 0)
-                deletions = diff.get("deletions", 0)
-                flush_tools()
-                print(f"[{ts}] [user] {agent}: {file_path} ({status}, +{additions}, -{deletions})")
-                print("---")
-                stats["user"] += 1
-        elif agent:
-            # User message with agent context but no file changes
-            flush_tools()
-            print(f"[{ts}] [user] {agent} session")
-            print("---")
-            stats["user"] += 1
-        
-        # Track that user spoke
-        stats["user"] += 1
-        
-    elif role == "assistant":
-        # Assistant messages: extract tool calls and responses
-        path = obj.get("path", {})
-        cwd = path.get("cwd", "")
-        
-        # Check for state/completed message (indicates work was done)
-        if obj.get("mode") or obj.get("state"):
-            mode = obj.get("mode", "")
-            state = obj.get("state", "")
-            
-            # Extract tokens used
-            tokens = obj.get("tokens", {})
-            input_tok = tokens.get("input", 0)
-            output_tok = tokens.get("output", 0)
-            
-            cost = obj.get("cost", 0)
-            
-            work_info = []
-            if mode:
-                work_info.append(f"mode={mode}")
-            if input_tok or output_tok:
-                work_info.append(f"tokens: {input_tok} in, {output_tok} out")
-            if cost:
-                work_info.append(f"cost=${cost}")
-            
-            if cwd:
-                work_info.append(f"cwd={cwd[:50]}")
-            
-            if work_info:
-                flush_tools()
-                print(f"[{ts}] [assistant] {', '.join(work_info)}")
-                print("---")
-                stats["assistant"] += 1
-        
-        # Also count as assistant even if sparse
-        if not (obj.get("mode") or obj.get("state")):
-            # Sparse message - still count it
-            pass
-        else:
-            stats["assistant"] += 1
-
-
-# Auto-detect platform from stdin OR handle OpenCode session ID mode
+# Auto-detect platform from first few lines, then process all
 detected = None
 buffer = []
 
-def handle_opencode_session(session_id, db_path=None):
-    """OpenCode: Query SQLite for conversation skeleton.
-    
-    Messages are stored in the message table as JSON in the data column.
-    """
-    import sqlite3
-    
-    db = db_path or os.path.expanduser("~/.local/share/opencode/opencode.db")
-    if not os.path.isfile(db):
-        return
-    
-    try:
-        conn = sqlite3.connect(db)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        # Get messages for this session
-        cursor.execute("""
-            SELECT id, data FROM message 
-            WHERE session_id = ? 
-            ORDER BY time_created
-        """, (session_id,))
-        
-        for row in cursor.fetchall():
-            stats["lines"] += 1
-            try:
-                data = json.loads(row["data"])
-                handle_opencode(data)
-            except (json.JSONDecodeError, KeyError):
-                stats["parse_errors"] += 1
-        
-        conn.close()
-    except (sqlite3.Error, OSError, IOError):
-        pass
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    buffer.append(line)
+    stats["lines"] += 1
 
-
-# Parse arguments: session ID (OpenCode) or stdin (JSONL)
-args = sys.argv[1:]
-
-if args and args[0].startswith("ses_"):
-    # OpenCode session ID mode
-    db_path = None
-    session_id = args[0]
-    
-    # Check for --db flag
-    if "--db" in args:
-        idx = args.index("--db")
-        if idx + 1 < len(args):
-            db_path = args[idx + 1]
-    
-    handle_opencode_session(session_id, db_path)
-    flush_tools()
-    print(json.dumps({"_meta": True, **stats}))
-elif args:
-    print(json.dumps({"_meta": True, "error": "Usage: extract-skeleton.py <session-id> OR cat file.jsonl | extract-skeleton.py"}))
-else:
-    # JSONL stdin mode (Claude/Codex/Cursor)
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        buffer.append(line)
-        stats["lines"] += 1
-
-        if not detected and len(buffer) <= 10:
-            try:
-                obj = json.loads(line)
-                if obj.get("type") in ("user", "assistant"):
-                    detected = "claude"
-                elif obj.get("type") in ("session_meta", "turn_context", "response_item", "event_msg"):
-                    detected = "codex"
-                elif obj.get("role") in ("user", "assistant") and "type" not in obj:
-                    detected = "cursor"
-            except (json.JSONDecodeError, KeyError):
-                pass
-
-    handlers = {"claude": handle_claude, "codex": handle_codex, "cursor": handle_cursor}
-    handler = handlers.get(detected, handle_codex)
-
-    for line in buffer:
+    if not detected and len(buffer) <= 10:
         try:
-            handler(json.loads(line))
+            obj = json.loads(line)
+            if obj.get("type") in ("user", "assistant"):
+                detected = "claude"
+            elif obj.get("type") in ("session_meta", "turn_context", "response_item", "event_msg"):
+                detected = "codex"
+            elif obj.get("role") in ("user", "assistant") and "type" not in obj:
+                detected = "cursor"
         except (json.JSONDecodeError, KeyError):
-            stats["parse_errors"] += 1
+            pass
 
-    # Flush any remaining buffered tools
-    flush_tools()
+handlers = {"claude": handle_claude, "codex": handle_codex, "cursor": handle_cursor}
+handler = handlers.get(detected, handle_codex)
 
-    print(json.dumps({"_meta": True, **stats}))
+for line in buffer:
+    try:
+        handler(json.loads(line))
+    except (json.JSONDecodeError, KeyError):
+        stats["parse_errors"] += 1
+
+# Flush any remaining buffered tools
+flush_tools()
+
+print(json.dumps({"_meta": True, **stats}))

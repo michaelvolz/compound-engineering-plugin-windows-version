@@ -1,3 +1,5 @@
+---
+---
 # Testing - DHH Rails Style
 
 ## Core Philosophy

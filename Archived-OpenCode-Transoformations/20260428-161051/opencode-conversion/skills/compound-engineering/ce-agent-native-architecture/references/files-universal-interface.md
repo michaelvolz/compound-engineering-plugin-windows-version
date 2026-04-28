@@ -1,3 +1,5 @@
+---
+---
 <overview>
 Files are the universal interface for agent-native applications. Agents are naturally fluent with file operations—they already know how to read, write, and organize files. This document covers why files work so well, how to organize them, and the context.md pattern for accumulated knowledge.
 </overview>

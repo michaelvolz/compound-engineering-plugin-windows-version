@@ -1,3 +1,5 @@
+---
+---
 <overview>
 A structured discipline for ensuring agents can do everything users can do. Every UI action should have an equivalent agent tool. This isn't a one-time check—it's an ongoing practice integrated into your development workflow.
 

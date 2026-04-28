@@ -1,3 +1,5 @@
+---
+---
 # Deepening Workflow
 
 This file contains the confidence-check execution path (5.3.3-5.3.7). Load it only when the deepening gate at 5.3.2 determines that deepening is warranted.
@@ -23,12 +25,12 @@ If the plan already has a `deepened:` date:
 
 **Section Checklists:**
 
-**Requirements Trace**
+**Requirements**
 - Requirements are vague or disconnected from implementation units
 - Success criteria are missing or not reflected downstream
 - Units do not clearly advance the traced requirements
 - Origin requirements are not clearly carried forward
-- Origin A/F/AE IDs (when supplied by the upstream brainstorm) are not preserved where planning decisions touch them, or are referenced inconsistently across Requirements Trace, units, and test scenarios
+- Origin A/F/AE IDs (when supplied by the upstream brainstorm) are not preserved where planning decisions touch them, or are referenced inconsistently across Requirements, units, and test scenarios
 
 **Context & Research / Sources & References**
 - Relevant repo patterns are named but never used in decisions or implementation units
@@ -98,44 +100,44 @@ Use fully-qualified agent names inside Task calls.
 
 **Deterministic Section-to-Agent Mapping:**
 
-**Requirements Trace / Open Questions classification**
-- `ce-spec-flow-analyzer` for missing user flows, edge cases, and handoff gaps
-- `ce-repo-research-analyst` (Scope: `architecture, patterns`) for repo-grounded patterns, conventions, and implementation reality checks
+**Requirements / Open Questions classification**
+- @compound-engineering/ce-spec-flow-analyzer for missing user flows, edge cases, and handoff gaps
+- @compound-engineering/ce-repo-research-analyst (Scope: `architecture, patterns`) for repo-grounded patterns, conventions, and implementation reality checks
 
 **Context & Research / Sources & References gaps**
-- `ce-learnings-researcher` for institutional knowledge and past solved problems
-- `ce-framework-docs-researcher` for official framework or library behavior
-- `ce-best-practices-researcher` for current external patterns and industry guidance
-- Add `ce-git-history-analyzer` only when historical rationale or prior art is materially missing
+- @compound-engineering/ce-learnings-researcher for institutional knowledge and past solved problems
+- @compound-engineering/ce-framework-docs-researcher for official framework or library behavior
+- @compound-engineering/ce-best-practices-researcher for current external patterns and industry guidance
+- Add @compound-engineering/ce-git-history-analyzer only when historical rationale or prior art is materially missing
 
 **Key Technical Decisions**
-- `ce-architecture-strategist` for design integrity, boundaries, and architectural tradeoffs
-- Add `ce-framework-docs-researcher` or `ce-best-practices-researcher` when the decision needs external grounding beyond repo evidence
+- @compound-engineering/ce-architecture-strategist for design integrity, boundaries, and architectural tradeoffs
+- Add @compound-engineering/ce-framework-docs-researcher or @compound-engineering/ce-best-practices-researcher when the decision needs external grounding beyond repo evidence
 
 **High-Level Technical Design**
-- `ce-architecture-strategist` for validating that the technical design accurately represents the intended approach and identifying gaps
-- `ce-repo-research-analyst` (Scope: `architecture, patterns`) for grounding the technical design in existing repo patterns and conventions
-- Add `ce-best-practices-researcher` when the technical design involves a DSL, API surface, or pattern that benefits from external validation
+- @compound-engineering/ce-architecture-strategist for validating that the technical design accurately represents the intended approach and identifying gaps
+- @compound-engineering/ce-repo-research-analyst (Scope: `architecture, patterns`) for grounding the technical design in existing repo patterns and conventions
+- Add @compound-engineering/ce-best-practices-researcher when the technical design involves a DSL, API surface, or pattern that benefits from external validation
 
 **Implementation Units / Verification**
-- `ce-repo-research-analyst` (Scope: `patterns`) for concrete file targets, patterns to follow, and repo-specific sequencing clues
-- `ce-pattern-recognition-specialist` for consistency, duplication risks, and alignment with existing patterns
-- Add `ce-spec-flow-analyzer` when sequencing depends on user flow or handoff completeness
+- @compound-engineering/ce-repo-research-analyst (Scope: `patterns`) for concrete file targets, patterns to follow, and repo-specific sequencing clues
+- @compound-engineering/ce-pattern-recognition-specialist for consistency, duplication risks, and alignment with existing patterns
+- Add @compound-engineering/ce-spec-flow-analyzer when sequencing depends on user flow or handoff completeness
 
 **System-Wide Impact**
-- `ce-architecture-strategist` for cross-boundary effects, interface surfaces, and architectural knock-on impact
+- @compound-engineering/ce-architecture-strategist for cross-boundary effects, interface surfaces, and architectural knock-on impact
 - Add the specific specialist that matches the risk:
-  - `ce-performance-oracle` for scalability, latency, throughput, and resource-risk analysis
-  - `ce-security-sentinel` for auth, validation, exploit surfaces, and security boundary review
-  - `ce-data-integrity-guardian` for migrations, persistent state safety, consistency, and data lifecycle risks
+  - @compound-engineering/ce-performance-oracle for scalability, latency, throughput, and resource-risk analysis
+  - @compound-engineering/ce-security-sentinel for auth, validation, exploit surfaces, and security boundary review
+  - @compound-engineering/ce-data-integrity-guardian for migrations, persistent state safety, consistency, and data lifecycle risks
 
 **Risks & Dependencies / Operational Notes**
 - Use the specialist that matches the actual risk:
-  - `ce-security-sentinel` for security, auth, privacy, and exploit risk
-  - `ce-data-integrity-guardian` for persistent data safety, constraints, and transaction boundaries
-  - `ce-data-migration-expert` for migration realism, backfills, and production data transformation risk
-  - `ce-deployment-verification-agent` for rollout checklists, rollback planning, and launch verification
-  - `ce-performance-oracle` for capacity, latency, and scaling concerns
+  - @compound-engineering/ce-security-sentinel for security, auth, privacy, and exploit risk
+  - @compound-engineering/ce-data-integrity-guardian for persistent data safety, constraints, and transaction boundaries
+  - @compound-engineering/ce-data-migration-expert for migration realism, backfills, and production data transformation risk
+  - @compound-engineering/ce-deployment-verification-agent for rollout checklists, rollback planning, and launch verification
+  - @compound-engineering/ce-performance-oracle for capacity, latency, and scaling concerns
 
 **Agent Prompt Shape:**
 
@@ -246,4 +248,4 @@ Do **not**:
 If research reveals a product-level ambiguity that should change behavior or scope:
 - Do not silently decide it here
 - Record it under `Open Questions`
-- Recommend `ce-brainstorm` if the gap is truly product-defining
+- Recommend skill({ name: "ce-brainstorm" }) if the gap is truly product-defining

@@ -1,3 +1,5 @@
+---
+---
 # Universal Brainstorming Facilitator
 
 This file is loaded when ce-brainstorm detects a non-software task (Phase 0). It replaces the software-specific brainstorming phases (Phases 0.2 through 4) with facilitation principles for any domain. The Core Principles and **Interaction Rules** in the parent `ce-brainstorm/SKILL.md` still apply unchanged — including one-question-per-turn and the default to the platform's blocking question tool. This file extends those rules with universal-domain facilitation guidance; it does not relax them.
@@ -59,5 +61,5 @@ When the conversation has enough material to narrow — reflect back what you've
 
 - **Create a plan** → hand off to `/ce-plan` with the decided goal and constraints
 - **Save summary to disk** → write the summary as a markdown file in the current working directory
-- **Open in Proof (web app) — review and comment to iterate with the agent** → load the `ce-proof` skill to open the doc in Every's Proof editor, iterate with the agent via comments, or copy a link to share with others
+- **Open in Proof (web app) — review and comment to iterate with the agent** → load the skill({ name: "ce-proof" }) skill to open the doc in Every's Proof editor, iterate with the agent via comments, or copy a link to share with others
 - **Done** → the conversation was the value, no artifact needed

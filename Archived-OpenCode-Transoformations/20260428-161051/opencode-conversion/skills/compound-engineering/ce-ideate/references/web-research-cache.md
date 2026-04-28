@@ -1,3 +1,5 @@
+---
+---
 # Web Research Cache (V15)
 
 Read this when checking the V15 cache before dispatching `web-researcher`, or when appending fresh research to the cache after dispatch. The behavior here is conditional — most invocations either hit the cache or write to it once and move on.
@@ -18,14 +20,14 @@ Read this when checking the V15 cache before dispatching `web-researcher`, or wh
 ]
 ```
 
-Files live under `<scratch-dir>/web-research-cache.json`, where `<scratch-dir>` is `/tmp/compound-engineering/ce-ideate/<run-id>`, resolved once in SKILL.md Phase 1.
+Files live under `<scratch-dir>/web-research-cache.json`, where `<scratch-dir>` is `/tmp/compound-engineeringskill({ name: "ce-ideate" })/<run-id>`, resolved once in SKILL.md Phase 1.
 
 ## Reuse check
 
 Before dispatching `web-researcher`, resolve the scratch root (the parent of `<scratch-dir>`) in bash and list sibling run-id directories — refinement loops within a session may legitimately reuse another run's cache by topic, not run-id:
 
 ```bash
-SCRATCH_ROOT="/tmp/compound-engineering/ce-ideate"
+SCRATCH_ROOT="/tmp/compound-engineeringskill({ name: "ce-ideate" })"
 find "$SCRATCH_ROOT" -maxdepth 2 -name 'web-research-cache.json' -type f 2>/dev/null
 ```
 
