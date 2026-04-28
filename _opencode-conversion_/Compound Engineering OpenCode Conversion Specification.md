@@ -1,7 +1,77 @@
 # Compound Engineering OpenCode Conversion Specification
 
-**PRIORITY REQUIREMENT - MUST BE FOLLOWED ABOVE ALL ELSE**  
-The converter MUST replicate the exact folder structure from the source, including all files, subdirectories, and names, with the only modification being the addition of the `compound-engineering` namespace folder. Under this namespace, the folder structure and file names must be identical to the source. This is non-negotiable and takes precedence over all other requirements.
+## CONVERSION MANDATE (AI Understanding Requirements)
+
+**This specification is written FOR YOU - the AI model performing the conversion. Human readability is NOT the priority.**
+
+When converting the compound-engineering plugin from Claude Code format to OpenCode format, you MUST follow these rules without exception:
+
+1. **Path Transformations (MANDATORY):**
+   - `~/.claude/` → `~/.config/opencode/`
+   - `.claude/` → `.opencode/`
+
+2. **Command/Skill Slash Syntax (MANDATORY):**
+   - CE commands: `/ce-plan`, `/ce-work`, `/ce-debug`, `/ce-ideate`, `/ce-sessions` etc.
+   - Transform TO: `skill({ name: "ce-plan" })`, `skill({ name: "ce-work" })`
+   - This applies to slash commands AND skill-internal references: "run /ce-compound" → `skill({ name: "ce-compound" })`
+
+3. **Agent Dispatch via Task/Agent Tool (MANDATORY):**
+   - Skills dispatch agents using Task/Agent tool with bare names
+   - CE reference: `ce-session-historian`, `ce-learnings-researcher`, `ce-adversarial-reviewer`
+   - Transform TO: `@compound-engineering/ce-session-historian`, `@compound-engineering/ce-learnings-researcher`
+   - Preserve `ce-` prefix, agent becomes flat `.agent.md` under compound-engineering namespace
+
+4. **Sub-Agent Dispatch via Skill Tool (MANDATORY):**
+   - Skills invoke other skills via Skill tool for nested workflows
+   - Nested skill invocation: `skill({ name: "ce-plan" })` → same format (skills call skills)
+   - This is used when one skill orchestrates another skill
+
+5. **Session Historian Scripts (MANDATORY):**
+   - OpenCode 1.14+ uses SQLite database, NOT JSON files
+   - Database location: `~/.local/share/opencode/opencode.db`
+   - Session table fields: `id`, `project_id`, `directory`, `title`, `slug`, `time_created` (milliseconds), `time_updated`
+   - Message table fields: `id`, `session_id`, `time_created`, `data` (JSON blob)
+   - Session IDs follow format: `ses_xxx` (e.g., `ses_249b86ed2ffeL7F1UidF1iMi2f`)
+   - Message IDs follow format: `msg_xxx` (e.g., `msg_dd23fe8ef002xugBF854qKmDjQ`)
+   - Timestamps are in MILLISECONDS - divide by 1000 for Unix epoch
+   - Scripts MUST query SQLite, NOT scan filesystem for OpenCode sessions
+
+6. **Prose/Reference Patterns (MANDATORY):**
+   - "use ce-X" in text -> `skill({ name: "ce-X" })`
+   - "invoke ce-X" in text -> `skill({ name: "ce-X" })`
+   - "run /ce-X" in text -> `skill({ name: "ce-X" })`
+   - "call ce-X" in text -> `skill({ name: "ce-X" })`
+   - Backtick-wrapped `ce-X` -> `skill({ name: "ce-X" })`
+   - Colon syntax `compound-engineering:ce-X` (if exists) -> `@compound-engineering/ce-X`
+
+7. **Line Endings (MANDATORY):**
+   - Enforce LF (Unix) line endings on ALL written files
+   - Convert CRLF to LF if detected
+
+8. **DO NOT TRANSFORM:**
+   - `name:` and `description:` fields in frontmatter
+   - Platform variable placeholders like `${CLAUDE_PLUGIN_ROOT}`
+   - Shell variables containing skill names
+
+9. **Frontmatter Transformations:**
+   - Remove: `model:`, `temperature:`, `color:`, `provider` fields
+   - Transform: `tools: Read, Grep, Glob, Bash` → `tools:\n  read: true\n  grep: true\n  ...`
+
+10. **Output Structure:**
+    - Skills: `~/.config/opencode/skills/compound-engineering/<skill-dir>/SKILL.md`
+    - Agents: `~/.config/opencode/agents/compound-engineering/<agent-name>.agent.md`
+    - Preserve exact folder structure under `compound-engineering/` namespace
+
+11. **Naming Convention:**
+    - All skills: prefix `ce-` (e.g., `ce-plan`, `ce-compound`, `ce-session-inventory`)
+    - All agents: prefix `ce-` (e.g., `ce-session-historian`, `ce-learnings-researcher`)
+    - Preserve prefixes exactly as-is in frontmatter `name:` field
+
+12. **Cross-Reference Patterns (MUST TRANSFORM):**
+    - `Task tool: ce-X` → `@compound-engineering/ce-X` (agent dispatch)
+    - `load ce-X skill` → `skill({ name: "ce-X" })` (skill invocation)
+    - `Spawn ce-X agent` → `@compound-engineering/ce-X` (agent spawn)
+    - `/ce-plan` slash command → `skill({ name: "ce-plan" })` (command invocation)
 
 ---
 
@@ -88,7 +158,7 @@ skill({ name: "ce-work-beta" })
 
 **Scope:** Only `.agent.md` and `SKILL.md` files are transformed. All files in `references/` subdirectories are NEVER touched.
 
-**What TO transform:** All skill/agent references anywhere in these files — including prose, code blocks, and examples — because they represent actionable invocations the AI should follow.
+**What TO transform:** All skill/agent references anywhere in these files — including provenance, code blocks, and examples — because they represent actionable invocations the AI should follow.
 
 **Do NOT transform:**
 
@@ -158,58 +228,25 @@ Patterns using `!**`command`**` syntax are resolved at runtime. The converter do
 
 ### Session Historian Support (OpenCode)
 
-**OpenCode 1.14+ uses SQLite, not JSON files.**
+**Critical: OpenCode 1.14+ uses SQLite database, NOT JSON files or JSONL.**
 
-| Platform    | Path                                                  | Format | Key Fields                                                                        |
-| ----------- | ----------------------------------------------------- | ------ | --------------------------------------------------------------------------------- |
-| Claude Code | `~/.claude/projects/<encoded-cwd>/`                   | JSONL  | `type`, `content[]`, `gitBranch`, `cwd`                                           |
-| OpenCode    | `~/.local/share/opencode/opencode.db`                 | SQLite | `session` table: `id`, `project_id`, `directory`, `title`, `slug`, `time_created` |
-| OpenCode    | `~/.local/share/opencode/opencode.db`                 | SQLite | `message` table: `id`, `session_id`, `time_created`, `data` (JSON blob)           |
-| Codex       | `~/.codex/sessions/YYYY/MM/DD/`                       | JSONL  | `session_meta`, `turn_context`                                                    |
-| Cursor      | `~/.cursor/projects/<encoded-cwd>/agent-transcripts/` | JSONL  | `role`, `content[]`                                                               |
+| Platform    | Path                                                  | Format | Key Fields                                                                       |
+| ----------- | ----------------------------------------------------- | ------ | -------------------------------------------------------------------------------- |
+| Claude Code | `~/.claude/projects/<encoded-cwd>/`                   | JSONL  | `type`, `content[]`, `gitBranch`, `cwd`                                          |
+| OpenCode    | `~/.local/share/opencode/opencode.db`                 | SQLite | `session` table: `id`, `directory`, `title`, `time_created` (ms), `time_updated` |
+| OpenCode    | `~/.local/share/opencode/opencode.db`                 | SQLite | `message` table: `id`, `session_id`, `time_created`, `data` (JSON blob)          |
+| Codex       | `~/.codex/sessions/YYYY/MM/DD/`                       | JSONL  | `session_meta`, `turn_context`                                                   |
+| Cursor      | `~/.cursor/projects/<encoded-cwd>/agent-transcripts/` | JSONL  | `role`, `content[]`                                                              |
 
-**OpenCode SQLite schema:**
+**OpenCode SQLite key information:**
 
-```sql
--- session table
-CREATE TABLE session (
-  id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL,
-  parent_id TEXT,
-  slug TEXT NOT NULL,
-  directory TEXT NOT NULL,
-  title TEXT NOT NULL,
-  version TEXT NOT NULL,
-  time_created INTEGER NOT NULL,
-  time_updated INTEGER NOT NULL
-);
-
--- message table
-CREATE TABLE message (
-  id TEXT PRIMARY KEY,
-  session_id TEXT NOT NULL,
-  time_created INTEGER NOT NULL,
-  data TEXT NOT NULL);  -- JSON blob containing role, parts, etc.
-```
-
-**Query examples:**
-
-```bash
-# Find sessions by directory
-sqlite3 ~/.local/share/opencode/opencode.db \
-  "SELECT id, title, directory FROM session WHERE directory LIKE '%/my-repo%'"
-
-# Get messages for a session
-sqlite3 ~/.local/share/opencode/opencode.db \
-  "SELECT id, time_created FROM message WHERE session_id = 'ses_xxx' ORDER BY time_created"
-```
-
-**Implementation notes:**
-
-- Scripts must use SQLite queries instead of file system scanning
-- Session historian scripts (`discover-sessions.sh`, `extract-metadata.py`) need SQLite query support alongside existing JSONL parsing for Claude Code, Codex, and Cursor
-- Legacy `session_diff/` directory may contain old JSON files but is not the primary storage
+- Database: `~/.local/share/opencode/opencode.db`
+- Session table: `id` (format: `ses_xxx`), `directory`, `title`, `project_id`, `slug`, `time_created` (MILLISECONDS), `time_updated`
+- Message table: `id` (format: `msg_xxx`), `session_id`, `time_created` (MILLISECONDS), `data` (JSON blob)
+- Session discovery: Query by directory path substring match
+- Message extraction: Query by session_id, parse JSON from data column
+- Timestamps: MILLISECONDS - divide by 1000 for Unix epoch
 
 ---
 
-_This specification is an LLM prompt reference for transforming Claude Code plugin source files into OpenCode format. It provides a 10,000-foot overview of required transformations without implementation details. All rules apply to conversion output only — source files remain unchanged._
+_This specification is an LLM prompt reference for transforming Claude Code plugin source files into OpenCode format. It provides transformation rules without implementation code. All rules apply to conversion output only — source files remain unchanged._
