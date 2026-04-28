@@ -56,6 +56,21 @@ When converting the compound-engineering plugin from Claude Code format to OpenC
 9. **Frontmatter Transformations:**
    - Remove: `model:`, `temperature:`, `color:`, `provider` fields
    - Transform: `tools: Read, Grep, Glob, Bash` → `tools:\n  read: true\n  grep: true\n  ...`
+   - **CRITICAL: Always ensure proper YAML frontmatter formatting:**
+     - Add a blank line **before** the closing `---`
+     - The closing `---` must be on its own line, NOT on the same line as the last field
+     - After any transformation that modifies frontmatter, verify the format:
+
+       ```
+       # BROKEN (YAML parsing error):
+       name: ce-plan
+       description: "..."---
+
+       # CORRECT:
+       name: ce-plan
+       description: "..."
+       ---
+       ```
 
 10. **Output Structure:**
     - Skills: `~/.config/opencode/skills/compound-engineering/<skill-dir>/SKILL.md`
