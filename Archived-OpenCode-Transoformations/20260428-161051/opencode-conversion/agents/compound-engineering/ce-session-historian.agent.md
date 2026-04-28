@@ -44,7 +44,7 @@ Infer the time range from the request and map it to a scan window. **Start narro
 
 **Widen only when needed.** If the initial scan finds related sessions, stop there. If it comes up empty and the request suggests a longer history matters (feature evolution, recurring problem), widen to the next tier and scan again. Do not jump straight to 30 or 90 days — step through the tiers one at a time.
 
-**When widening the time window**, re-invoke @compound-engineeringskill({ name: "ce-session-inventory" }) with the larger `<days>` argument. The underlying discovery applies `-mtime` filtering, so files outside the original window were never returned — a wider scan needs a fresh invocation, not a continuation.
+**When widening the time window**, re-invoke skill({ name: "ce-session-inventory" }) with the larger `<days>` argument. The underlying discovery applies `-mtime` filtering, so files outside the original window were never returned — a wider scan needs a fresh invocation, not a continuation.
 
 **For Codex**, sessions are in date directories. A narrow window means fewer directories to list and fewer files to process.
 
@@ -104,9 +104,9 @@ Platform detection: Check if `~/.local/share/opencode/` exists to confirm OpenCo
 
 Extraction is delegated to two agent-facing skills. Invoke them through the Skill tool — do not read or execute platform-specific scripts directly. The skills own the JSONL format knowledge and return clean, parsed output.
 
-- **@compound-engineeringskill({ name: "ce-session-inventory" })** — inventory of sessions for a repo. Given `<repo> <days> [<platform>]`, returns one JSON object per session (platform, file, size, ts, session, plus platform-specific fields like branch or cwd) followed by a `_meta` line with `files_processed` and `parse_errors`. Use this in Step 1 to discover what sessions exist before deciding which to deep-dive.
+- **skill({ name: "ce-session-inventory" })** — inventory of sessions for a repo. Given `<repo> <days> [<platform>]`, returns one JSON object per session (platform, file, size, ts, session, plus platform-specific fields like branch or cwd) followed by a `_meta` line with `files_processed` and `parse_errors`. Use this in Step 1 to discover what sessions exist before deciding which to deep-dive.
 
-- **@compound-engineeringskill({ name: "ce-session-extract" })** — per-session extraction. Given `<file> <mode> [<limit>]` where mode is `skeleton` or `errors` and limit is `head:N` or `tail:N`, returns filtered content from a single session file. Use this in Steps 4 and 5 for selected sessions.
+- **skill({ name: "ce-session-extract" })** — per-session extraction. Given `<file> <mode> [<limit>]` where mode is `skeleton` or `errors` and limit is `head:N` or `tail:N`, returns filtered content from a single session file. Use this in Steps 4 and 5 for selected sessions.
 
 Both skills emit a `_meta` line with processing stats. When `parse_errors > 0`, note in the response that extraction was partial.
 
@@ -123,7 +123,7 @@ Determine the scan window from the Time Range table above, then discover and ext
 
 **Derive the repo name** using a worktree-safe approach: check `git rev-parse --git-common-dir` first — in a normal checkout it returns `.git` (use `--show-toplevel` to get the repo root), but in a linked worktree it returns the absolute path to the main repo's `.git` directory (use `dirname` on that path to get the repo root). In either case, `basename` the result to get the repo name. Example: `common=$(git rev-parse --git-common-dir 2>/dev/null); if [ "$common" = ".git" ]; then basename "$(git rev-parse --show-toplevel 2>/dev/null)"; else basename "$(dirname "$common")"; fi`. If the repo name was pre-resolved in the dispatch prompt, use that instead.
 
-**Discover sessions and gather metadata via @compound-engineeringskill({ name: "ce-session-inventory" }).** Invoke the skill with `<repo-name> <days>` (or add a `<platform>` arg to restrict to a single platform). The skill handles directory discovery, mtime filtering, zsh glob safety, and Codex CWD filtering internally, and returns one JSON object per session plus a `_meta` line.
+**Discover sessions and gather metadata via skill({ name: "ce-session-inventory" }).** Invoke the skill with `<repo-name> <days>` (or add a `<platform>` arg to restrict to a single platform). The skill handles directory discovery, mtime filtering, zsh glob safety, and Codex CWD filtering internally, and returns one JSON object per session plus a `_meta` line.
 
 If the `_meta` line shows `files_processed: 0`, return: "No session history found within the requested time range." If `parse_errors > 0`, note that some sessions could not be parsed.
 
@@ -146,13 +146,13 @@ From the remaining sessions, select the most relevant (typically 2-5 total acros
 
 ### Step 4: Extract conversation skeleton
 
-For each selected session, invoke @compound-engineeringskill({ name: "ce-session-extract" }) with mode `skeleton` and limit `head:200`. Large sessions (4MB+) can produce 500-700 skeleton lines — the opening turns establish the topic and the final turns show the conclusion, but the middle is often repetitive tool call cycles. 200 lines is enough to understand the narrative arc without flooding context.
+For each selected session, invoke skill({ name: "ce-session-extract" }) with mode `skeleton` and limit `head:200`. Large sessions (4MB+) can produce 500-700 skeleton lines — the opening turns establish the topic and the final turns show the conclusion, but the middle is often repetitive tool call cycles. 200 lines is enough to understand the narrative arc without flooding context.
 
 If the head-capped skeleton doesn't cover the session's conclusion, invoke the skill again with limit `tail:50` to see how it ended.
 
 ### Step 5: Extract error signals (selective)
 
-For sessions where investigation dead-ends are likely valuable, invoke @compound-engineeringskill({ name: "ce-session-extract" }) with mode `errors`. Use this selectively — only when understanding what went wrong adds value.
+For sessions where investigation dead-ends are likely valuable, invoke skill({ name: "ce-session-extract" }) with mode `errors`. Use this selectively — only when understanding what went wrong adds value.
 
 ### Step 6: Synthesize findings
 
@@ -181,5 +181,5 @@ Look for:
 
 ## Tool Guidance
 
-- Delegate all JSONL extraction to the @compound-engineeringskill({ name: "ce-session-inventory" }) and @compound-engineeringskill({ name: "ce-session-extract" }) skills. Do not read session files directly — they can be multiple MB and will blow the context.
+- Delegate all JSONL extraction to the skill({ name: "ce-session-inventory" }) and skill({ name: "ce-session-extract" }) skills. Do not read session files directly — they can be multiple MB and will blow the context.
 - Use native content-search (e.g., Grep in Claude Code) only when searching for a specific keyword across session files that the extraction skills have already surfaced as candidates.

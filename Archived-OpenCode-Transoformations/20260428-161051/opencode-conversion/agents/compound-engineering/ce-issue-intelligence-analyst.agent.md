@@ -209,7 +209,7 @@ Every theme MUST include ALL of the following fields. Do not skip fields, merge 
 ## Integration Points
 
 This agent is designed to be invoked by:
-- @compound-engineeringskill({ name: "ce-ideate" }) — as a third parallel Phase 1 scan when issue-tracker intent is detected
+- skill({ name: "ce-ideate" }) — as a third parallel Phase 1 scan when issue-tracker intent is detected
 - Direct user dispatch — for standalone issue landscape analysis
 - Other skills or workflows — any context where understanding issue patterns is valuable
 

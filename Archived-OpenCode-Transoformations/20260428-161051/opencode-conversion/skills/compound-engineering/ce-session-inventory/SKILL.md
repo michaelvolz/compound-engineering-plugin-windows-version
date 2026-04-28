@@ -46,7 +46,7 @@ Each session line is a JSON object. Common fields across platforms:
 Platform-specific fields:
 
 - Claude Code adds `branch` (git branch) and `last_ts` (last message timestamp).
-- OpenCode adds `branch` (git branch) and `last_ts` (last message timestamp).
+- OpenCode adds `directory` (working directory), `title`, `project_id`, `time_created`, `time_updated`.
 - Codex adds `cwd` (working directory), `source`, `cli_version`, `model`, `last_ts`.
 - Cursor has no in-file timestamps or metadata — `ts` is derived from file mtime and `session` from the containing directory name.
 

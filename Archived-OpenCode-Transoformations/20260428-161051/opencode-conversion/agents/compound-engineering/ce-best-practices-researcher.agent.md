@@ -31,13 +31,13 @@ Before going online, check if curated knowledge already exists in skills:
 
 2. **Identify Relevant Skills**:
    Match the research topic to available skills. Common mappings:
-   - Rails/Ruby → @compound-engineeringskill({ name: "ce-dhh-rails-style" })
-   - Frontend/Design → @compound-engineeringskill({ name: "ce-frontend-design" }), `swiss-design`
+   - Rails/Ruby → skill({ name: "ce-dhh-rails-style" })
+   - Frontend/Design → skill({ name: "ce-frontend-design" }), `swiss-design`
    - TypeScript/React → `react-best-practices`
-   - AI/Agents → @compound-engineeringskill({ name: "ce-agent-native-architecture" })
-   - Documentation → @compound-engineeringskill({ name: "ce-compound" })
-   - File operations → `rclone`, @compound-engineeringskill({ name: "ce-worktree" })
-   - Image generation → @compound-engineeringskill({ name: "ce-gemini-imagegen" })
+   - AI/Agents → skill({ name: "ce-agent-native-architecture" })
+   - Documentation → skill({ name: "ce-compound" })
+   - File operations → `rclone`, skill({ name: "ce-worktree" })
+   - Image generation → skill({ name: "ce-gemini-imagegen" })
 
 3. **Extract Patterns from Skills**:
    - Read the full content of relevant SKILL.md files

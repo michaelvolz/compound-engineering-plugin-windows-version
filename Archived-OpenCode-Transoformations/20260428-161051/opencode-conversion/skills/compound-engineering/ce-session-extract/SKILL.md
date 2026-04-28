@@ -15,23 +15,28 @@ This skill exists so that agents do not read multi-megabyte session files into c
 
 Space-separated positional args:
 
-1. `<file>` — absolute path to a session JSONL file (typically a `file` value returned by skill({ name: "ce-session-inventory" })).
+1. `<file-or-session-id>` — For Claude/Codex/Cursor: absolute path to session JSONL file. For OpenCode: session ID (ses_xxx format).
 2. `<mode>` — `skeleton` or `errors`.
 3. `<limit>` *(optional)* — `head:N` or `tail:N` to cap output at N lines (e.g., `head:200`). Omit to return full extraction.
 
 ## Execution
 
-**Skeleton mode** — narrative of user messages, assistant text, and collapsed tool-call summaries:
+**For Claude/Codex/Cursor (JSONL files):**
 
 ```bash
 cat <file> | python3 scripts/extract-skeleton.py
 ```
 
-**Errors mode** — just error signals:
+**For OpenCode (session ID):**
 
 ```bash
-cat <file> | python3 scripts/extract-errors.py
+python3 scripts/extract-skeleton.py <session-id>
+python3 scripts/extract-errors.py <session-id>
 ```
+
+**Skeleton mode** — narrative of user messages, assistant text, and collapsed tool-call summaries:
+
+**Errors mode** — just error signals:
 
 If `<limit>` is `head:N`, pipe through `head -n N`. If `tail:N`, pipe through `tail -n N`. Apply the limit after the Python script, never before — the `_meta` line is emitted last and a head cap may drop it; that is acceptable when the caller asks for a head cap.
 
